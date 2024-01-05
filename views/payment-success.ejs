@@ -1,0 +1,54 @@
+<!-- payment-success.ejs -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Success</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        p {
+            font-size: 1.2em;
+            color: #555;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Thank you for your payment!</h1>
+    <p>Details:</p>
+    <ul>
+        <li>Order ID: <strong><%= orderId %></strong>
+        </li>
+        <li>Amount: <strong><%= amount %></strong>
+        </li>
+        <li>------------------------------------</li>
+        <li><h3>Thank you for your payment!</h3></li>
+        <li><h3>Check your email for more details.</h3></li>
+    </ul>
+</body>
+
+</html>
