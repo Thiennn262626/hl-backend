@@ -231,9 +231,9 @@ router.get("/get-list-best-seller", async (request, response) => {
       const priceMatch =
         !isNaN(minAmount) && !isNaN(maxAmount)
           ? item.productSKU &&
-            item.productSKU.length > 0 &&
-            item.productSKU[0].price >= minAmount &&
-            item.productSKU[0].price <= maxAmount
+          item.productSKU.length > 0 &&
+          item.productSKU[0].price >= minAmount &&
+          item.productSKU[0].price <= maxAmount
           : true;
       return (
         (productNameMatch ||
@@ -329,9 +329,9 @@ router.get("/get-list-new", async (request, response) => {
       const priceMatch =
         !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
           ? item.productSKU &&
-            item.productSKU.length > 0 &&
-            item.productSKU[0].price >= minAmount &&
-            item.productSKU[0].price <= maxAmount
+          item.productSKU.length > 0 &&
+          item.productSKU[0].price >= minAmount &&
+          item.productSKU[0].price <= maxAmount
           : true;
       return (
         (productNameMatch ||
@@ -439,9 +439,9 @@ router.get("/get-list-hot", async (request, response) => {
       const priceMatch =
         !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
           ? item.productSKU &&
-            item.productSKU.length > 0 &&
-            item.productSKU[0].price >= minAmount &&
-            item.productSKU[0].price <= maxAmount
+          item.productSKU.length > 0 &&
+          item.productSKU[0].price >= minAmount &&
+          item.productSKU[0].price <= maxAmount
           : true;
       return (
         (productNameMatch ||
@@ -544,9 +544,9 @@ router.get("/get-list-good-price-today", async (request, response) => {
       const priceMatch =
         !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
           ? item.productSKU &&
-            item.productSKU.length > 0 &&
-            item.productSKU[0].price >= minAmount &&
-            item.productSKU[0].price <= maxAmount
+          item.productSKU.length > 0 &&
+          item.productSKU[0].price >= minAmount &&
+          item.productSKU[0].price <= maxAmount
           : true;
       return (
         (productNameMatch ||
