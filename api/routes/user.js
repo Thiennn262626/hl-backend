@@ -493,6 +493,7 @@ async function checkEmailIsExisting(emailAddress, idAccount, transaction) {
       FROM [User] 
       LEFT JOIN Email ON [User].id = Email.idUser
       WHERE [User].id_account = @idAccount AND Email.emailAddress = @email
+      order by Email.isVerify desc
       `;
     const resultEmail = await transaction
       .request()
