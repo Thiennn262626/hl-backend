@@ -1,16 +1,22 @@
 const sql = require("mssql");
-
 const config = {
-  user: "hlshop", // Tên người dùng SQL Server trên Azure
-  password: "group01@", // Mật khẩu SQL Server trên Azure
-  server: "hlshop.database.windows.net", // Tên máy chủ SQL Server trên Azure
-  database: "hlshopv1", // Tên cơ sở dữ liệu SQL Server trên Azure
+  user: "hl-shop-admin",
+  password: "12345678QT#",
+  database: "hl-shop-database",
+  server: "hl-shop.database.windows.net",
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000,
+  },
   options: {
-    encrypt: true, // Sử dụng mã hóa SSL (bắt buộc khi sử dụng Azure)
+    encrypt: true, // for azure
+    trustServerCertificate: true, // change to true for local dev / self-signed certs
   },
 };
 
 // Tạo kết nối đến cơ sở dữ liệu SQL Server trên Azure
+
 const pool = new sql.ConnectionPool(config);
 const connection = pool
   .connect()
@@ -22,3 +28,5 @@ const connection = pool
   });
 
 module.exports = pool;
+
+
