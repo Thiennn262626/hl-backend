@@ -21,6 +21,8 @@ const wardRouter = require("./api/routes/ward");
 const orderRouter = require("./api/routes/order");
 const feeShipRouter = require("./api/routes/feeship");
 const subcribeRouter = require("./api/routes/subcribe");
+const ratingRouter = require("./api/routes/rating");
+
 //import file admin
 const adminAccountRouter = require("./admin/routes/account");
 const adminCategoryRouter = require("./admin/routes/category");
@@ -46,6 +48,7 @@ app.use("/api/hlshop/order", orderRouter);
 app.use("/api/hlshop/ward", wardRouter);
 app.use("/api/hlshop/feeship", feeShipRouter);
 app.use("/api/hlshop/subcribe", subcribeRouter);
+app.use("/api/hlshop/rating", ratingRouter);
 
 //use method from file admin
 app.use("/api/hlshop/admin/auth", adminAccountRouter);
