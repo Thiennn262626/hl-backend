@@ -10,6 +10,7 @@ const checkRoleAdmin = require("../../middleware/check_role_admin");
 const firebase = require("../../firebase");
 
 const multer = require("multer");
+const e = require("express");
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
@@ -70,8 +71,17 @@ router.post(
           );
 
           for (let i = 0; i < avatarMediaIDS.length; i++) {
+            var isDefault = 0;
             const MediaID = avatarMediaIDS[i];
-            await updateMedia0(transaction, id_product, MediaID.mediaID);
+            if (i === 0) {
+              isDefault = 1;
+            }
+            await updateMedia0(
+              transaction,
+              id_product,
+              MediaID.mediaID,
+              isDefault
+            );
           }
 
           const array_attribute = await insertProductAttributeAndValue(
@@ -118,17 +128,119 @@ router.post(
     }
   }
 );
-async function updateMedia0(transaction, id_product, MediaID) {
+
+async function insertProduct1(jsonData) {
+  let transaction = new sql.Transaction(database);
+  try {
+    const item_id = jsonData.item_id;
+    const name = jsonData.productName;
+    const slogan = jsonData.productSlogan;
+    const description = jsonData.productDescription;
+    const notes = jsonData.productNotes;
+    const madeIn = jsonData.productMadeIn;
+    const uses = jsonData.productUses;
+    const ingredient = jsonData.productIngredient;
+    const objectsOfUse = jsonData.productObjectsOfUse;
+    const preserve = jsonData.productPreserve;
+    const instructionsForUse = jsonData.productInstructionsForUse;
+    const height = jsonData.productHeight;
+    const width = jsonData.productWidth;
+    const length = jsonData.productLength;
+    const weight = jsonData.productWeight;
+    const sellQuantity = 0;
+    const createdDate = new Date();
+    const idCategory = jsonData.productCategoryID;
+    const idAccount = "89B43CEB-BA13-48FF-881C-0EF82880F569";
+    const attributes = jsonData.attributes;
+    const avatarMediaIDS = jsonData.avatarMediaIDS;
+    const productSKUs = jsonData.productSKUs;
+    await transaction
+      .begin()
+      .then(async () => {
+        const id_product = await insertProduct(
+          transaction,
+          name,
+          slogan,
+          description,
+          notes,
+          madeIn,
+          uses,
+          ingredient,
+          objectsOfUse,
+          preserve,
+          instructionsForUse,
+          height,
+          width,
+          length,
+          weight,
+          sellQuantity,
+          createdDate,
+          idCategory,
+          idAccount,
+          item_id
+        );
+
+        for (let i = 0; i < avatarMediaIDS.length; i++) {
+          var isDefault = 0;
+          const MediaID = avatarMediaIDS[i];
+          if (i === 0) {
+            isDefault = 1;
+          }
+          await updateMedia0(
+            transaction,
+            id_product,
+            MediaID.mediaID,
+            isDefault
+          );
+        }
+
+        const array_attribute = await insertProductAttributeAndValue(
+          transaction,
+          attributes,
+          id_product
+        );
+        console.log(array_attribute);
+        await processProductSKU(
+          transaction,
+          productSKUs,
+          id_product,
+          array_attribute
+        );
+        await transaction.commit();
+      })
+      .catch(async (err) => {
+        await transaction.rollback();
+        throw err;
+      });
+    return {
+      status: 200,
+      message: "Create product successfully",
+    };
+  } catch (error) {
+    console.log(error);
+    if (error.code === "EREQUEST") {
+      return "Database error";
+    }
+    if (error.code === "EABORT") {
+      return "Invalid input data";
+    }
+    return error;
+  }
+}
+
+async function updateMedia0(transaction, id_product, MediaID, isDefault = 0) {
   try {
     const query = `
       UPDATE Media
-      SET id_product = @id_product
+      SET id_product = @id_product,
+      isDefault = @isDefault
       WHERE id = @MediaID
     `;
     const result = await transaction
       .request()
       .input("id_product", id_product)
       .input("MediaID", MediaID)
+      .input("isDefault", isDefault)
       .query(query);
   } catch (error) {
     throw "Error update media Product";
@@ -148,7 +260,8 @@ async function updateMedia(
       SET id_product = @id_product,
       productAttributeValueID = @productAttributeValueID,
       title = @title,
-      description = @description
+      description = @description,
+      isDefault = @isDefault
       WHERE id = @MediaID
     `;
     const result = await transaction
@@ -158,6 +271,7 @@ async function updateMedia(
       .input("title", title)
       .input("description", title)
       .input("MediaID", MediaID)
+      .input("isDefault", 0)
       .query(query);
   } catch (error) {
     throw "Error update media productAttributeValue";
@@ -244,14 +358,15 @@ async function insertProductSKU(
 ) {
   try {
     const query = `
-      INSERT INTO ProductSKU(quantity, price, priceBefore, enable, idProduct, idAttributeValue1, idAttributeValue2)
+      INSERT INTO ProductSKU(quantity, sold, price, priceBefore, enable, idProduct, idAttributeValue1, idAttributeValue2)
       OUTPUT inserted.id AS id_product_sku 
       SELECT 
-        @quantity, @price, @priceBefore, @enable, @id_product, @id_product_attribute1, @id_product_attribute2
+        @quantity, @sold, @price, @priceBefore, @enable, @id_product, @id_product_attribute1, @id_product_attribute2
       `;
     const result = await transaction
       .request()
       .input("quantity", Number(productSKUs.totalStock))
+      .input("sold", productSKUs.sold ? productSKUs.sold : 0)
       .input("price", Number(productSKUs.price))
       .input("priceBefore", Number(productSKUs.priceBefore))
       .input("enable", true)
@@ -391,14 +506,15 @@ async function insertProduct(
   sellQuantity,
   createdDate,
   idCategory,
-  idAccount
+  idAccount,
+  item_id
 ) {
   try {
     const query = `
-      INSERT INTO Product(name, slogan, description, notes, uses, madeIn, sellQuantity, createdDate, id_Category, id_User, ingredient, objectsOfUse, preserve, instructionsForUse, height, width, length, weight, enable)
+      INSERT INTO Product(name, slogan, description, notes, uses, madeIn, sellQuantity, createdDate, id_Category, id_User, ingredient, objectsOfUse, preserve, instructionsForUse, height, width, length, weight, enable, item_id)
       OUTPUT inserted.id AS id_product
       SELECT 
-        @name, @slogan, @description, @notes, @uses, @madeIn, @sellQuantity, @createdDate, Category.id, [User].id, @ingredient, @objectsOfUse, @preserve, @instructionsForUse, @height, @width, @length, @weight, 1
+        @name, @slogan, @description, @notes, @uses, @madeIn, @sellQuantity, @createdDate, Category.id, [User].id, @ingredient, @objectsOfUse, @preserve, @instructionsForUse, @height, @width, @length, @weight, 1, @item_id
       FROM [User], Category
       WHERE [User].id_account = @idAccount AND Category.id = @idCategory `;
     const result = await transaction
@@ -421,6 +537,7 @@ async function insertProduct(
       .input("createdDate", createdDate)
       .input("idCategory", idCategory)
       .input("idAccount", idAccount)
+      .input("item_id", item_id.toString())
       .query(query);
     return result.recordset[0].id_product;
   } catch (error) {
@@ -913,3 +1030,4 @@ router.post("/restock-sku", checkAuth, checkRoleAdmin, async (req, res) => {
   }
 });
 module.exports = router;
+module.exports.insertProduct1 = insertProduct1;

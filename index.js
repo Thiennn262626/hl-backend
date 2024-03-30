@@ -8,6 +8,11 @@ app.use(cors());
 
 const port = 80;
 
+const initRedis = require("./dbs/init.redis");
+initRedis.initRedis();
+
+const initSql = require("./dbs/init.sqlserver");
+
 //import file
 const accountRouter = require("./api/routes/account");
 const categoryRouter = require("./api/routes/category");
