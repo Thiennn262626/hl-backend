@@ -2,7 +2,6 @@ const express = require("express");
 
 const router = express.Router();
 const database = require("../../config");
-
 require("dotenv").config();
 
 async function getProductDetail(idProduct) {
@@ -154,7 +153,6 @@ async function getListProduct() {
               JOIN ProductSku as ps ON p.id = ps.idProduct
               JOIN Media as m ON p.id = m.id_product
               WHERE ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
-              ORDER BY p.sellQuantity DESC
             `;
     const result = await database.request().query(queryProduct);
 
@@ -231,9 +229,9 @@ router.get("/get-list-best-seller", async (request, response) => {
       const priceMatch =
         !isNaN(minAmount) && !isNaN(maxAmount)
           ? item.productSKU &&
-          item.productSKU.length > 0 &&
-          item.productSKU[0].price >= minAmount &&
-          item.productSKU[0].price <= maxAmount
+            item.productSKU.length > 0 &&
+            item.productSKU[0].price >= minAmount &&
+            item.productSKU[0].price <= maxAmount
           : true;
       return (
         (productNameMatch ||
@@ -329,9 +327,9 @@ router.get("/get-list-new", async (request, response) => {
       const priceMatch =
         !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
           ? item.productSKU &&
-          item.productSKU.length > 0 &&
-          item.productSKU[0].price >= minAmount &&
-          item.productSKU[0].price <= maxAmount
+            item.productSKU.length > 0 &&
+            item.productSKU[0].price >= minAmount &&
+            item.productSKU[0].price <= maxAmount
           : true;
       return (
         (productNameMatch ||
@@ -439,9 +437,9 @@ router.get("/get-list-hot", async (request, response) => {
       const priceMatch =
         !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
           ? item.productSKU &&
-          item.productSKU.length > 0 &&
-          item.productSKU[0].price >= minAmount &&
-          item.productSKU[0].price <= maxAmount
+            item.productSKU.length > 0 &&
+            item.productSKU[0].price >= minAmount &&
+            item.productSKU[0].price <= maxAmount
           : true;
       return (
         (productNameMatch ||
@@ -544,9 +542,9 @@ router.get("/get-list-good-price-today", async (request, response) => {
       const priceMatch =
         !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
           ? item.productSKU &&
-          item.productSKU.length > 0 &&
-          item.productSKU[0].price >= minAmount &&
-          item.productSKU[0].price <= maxAmount
+            item.productSKU.length > 0 &&
+            item.productSKU[0].price >= minAmount &&
+            item.productSKU[0].price <= maxAmount
           : true;
       return (
         (productNameMatch ||

@@ -1,7 +1,10 @@
 const nodemailer = require("nodemailer");
-require("dotenv").config();
+const dotenv = require("dotenv");
 const path = require("path");
 var hbs = require("nodemailer-express-handlebars");
+
+dotenv.config();
+
 const mail = process.env.mail;
 const password = process.env.password;
 
@@ -37,12 +40,6 @@ function sendOTP(email, otp) {
       email: email,
     },
   };
-  // var mailOptions = {
-  //   from: '"HLSHOP Management"',
-  //   to: email,
-  //   subject: "OTP Verification",
-  //   text: `Dear ${email}\nYour OTP code is: ${otp}\nIf you don't require this code, you can safely ignore this email. It's possible that someone else entered your email address by mistake.\n\nThank you,\nHLSHOP Management`,
-  // };
 
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
