@@ -66,11 +66,11 @@ app.use("/api/hlshop/admin/users", adminUserRouter);
 // });
 
 const router = require("express").Router();
-const swaggerUi = require("swagger-ui-express");
-const swaggerDocument = require("./swagger-output.json");
+// const swaggerUi = require("swagger-ui-express");
+// const swaggerDocument = require("./swagger-output.json");
 
-router.use("/api-docs", swaggerUi.serve);
-router.get("/api-docs", swaggerUi.setup(swaggerDocument));
+// router.use("/api-docs", swaggerUi.serve);
+// router.get("/api-docs", swaggerUi.setup(swaggerDocument));
 
 app.use("/", router);
 app.listen(port, () => console.log(`Server is running on port ${port}`));
