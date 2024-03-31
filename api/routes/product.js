@@ -2,7 +2,7 @@ const express = require("express");
 
 const router = express.Router();
 const database = require("../../config");
-require("dotenv").config();
+const RedisService = require("../../services/redis.service");
 
 async function getProductDetail(idProduct) {
   try {
@@ -204,7 +204,14 @@ router.get("/get-list-best-seller", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    const resultArray = await getListProduct();
+    let resultArray = await RedisService.get("listProduct");
+    if (!resultArray) {
+      resultArray = await getListProduct();
+      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.expire("listProduct", 300);
+    } else {
+      resultArray = JSON.parse(resultArray);
+    }
 
     resultArray.sort((a, b) => {
       return b.sellQuantity - a.sellQuantity;
@@ -302,7 +309,14 @@ router.get("/get-list-new", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    const resultArray = await getListProduct();
+    let resultArray = await RedisService.get("listProduct");
+    if (!resultArray) {
+      resultArray = await getListProduct();
+      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.expire("listProduct", 300);
+    } else {
+      resultArray = JSON.parse(resultArray);
+    }
 
     resultArray.sort((a, b) => {
       return new Date(b.createdDate) - new Date(a.createdDate);
@@ -399,7 +413,14 @@ router.get("/get-list-hot", async (request, response) => {
     var search = request.query.search ? request.query.search.toLowerCase() : "";
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
-    const resultArray = await getListProduct();
+    let resultArray = await RedisService.get("listProduct");
+    if (!resultArray) {
+      resultArray = await getListProduct();
+      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.expire("listProduct", 300);
+    } else {
+      resultArray = JSON.parse(resultArray);
+    }
 
     resultArray.sort((a, b) => {
       const weightSellQuantity = 1; // Trọng số cho sellQuantity
@@ -511,7 +532,14 @@ router.get("/get-list-good-price-today", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    const resultArray = await getListProduct();
+    let resultArray = await RedisService.get("listProduct");
+    if (!resultArray) {
+      resultArray = await getListProduct();
+      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.expire("listProduct", 300);
+    } else {
+      resultArray = JSON.parse(resultArray);
+    }
 
     resultArray.sort((a, b) => {
       const calculateDiscountRate = (product) =>
