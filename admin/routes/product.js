@@ -10,7 +10,6 @@ const checkRoleAdmin = require("../../middleware/check_role_admin");
 const firebase = require("../../firebase");
 
 const multer = require("multer");
-const e = require("express");
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,

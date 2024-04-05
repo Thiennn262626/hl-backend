@@ -70,7 +70,7 @@ async function getProductDetail(idProduct) {
           seller: {
             sellerID: "75B9BA7C-0258-4830-9F08-66B74720229B",
             businessName: "HLSHOP",
-            contactFullName: "Bùi Hào Quang",
+            contactFullName: "ADMIN",
             userType: 0,
             linkString:
               "https://storage.googleapis.com/hlsop-393ef.appspot.com/image.png?GoogleAccessId=firebase-adminsdk-5uq3u%40hlsop-393ef.iam.gserviceaccount.com&Expires=16730298000&Signature=mdOGFfym9%2FHsZgKS5l1NnpGX7yWhHahhEB7TXkPv9zbE8GbJ6Akf1HSNNpyLD7VRY5O%2BlWTuQWdv2wu6bFyXZmvlp%2FgR5AoNqamat8NqZ79QVIT0yyN36D6dVjliL2U61%2Fg2Cl6ZSYXnXudcC6TXFVhlbsCb7gua7tBCYbB1XDPC4EiAT47ztd256TmB%2B1jwMBz3w24hB7xt7nWwv6Pk3oc4XiyjeZAIjAsVYIiCwMTjg0lvkoC279wzfeEZapDkWwS8f4NgT8faJbaLrP4ZOTMl2EQYfomVdQwTjdxxt7avrRJyaRhd1yzV63afuEx6%2Ff71QmgY9Gxp7U%2F%2Fygjr3g%3D%3D",

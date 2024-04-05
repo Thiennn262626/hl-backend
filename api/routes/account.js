@@ -37,7 +37,7 @@ router.post("/signup-email", async (request, response) => {
         return;
       }
     } else {
-      const role = 1;
+      const role = 0;
       const createdDate = new Date();
       const expired = new Date(createdDate.getTime() + 32000);
       const isVerify = 0; //Lúc đăng ký chưa xác nhận thì có giá trị 0, sau khi xác nhận thì có giá trị 1
@@ -114,7 +114,7 @@ router.post("/signup-phone", async (request, response) => {
         return;
       }
     } else {
-      const role = 1;
+      const role = 0;
       const createdDate = new Date();
       const expired = new Date(createdDate.getTime() + 32000);
       const isVerify = 0; //Lúc đăng ký chưa xác nhận thì có giá trị 0, sau khi xác nhận thì có giá trị 1
@@ -337,7 +337,7 @@ router.post("/signin-email", async (request, response) => {
       });
     } else {
       if (result.recordset[0].password === password) {
-        if (result.recordset[0].role === 1) {
+        if (result.recordset[0].role === 0) {
           if (result.recordset[0].isVerify === 0) {
             response.status(400).json({
               errorCode: "MSG0046",
@@ -391,7 +391,7 @@ router.post("/signin-phone", async (request, response) => {
       });
     } else {
       if (result.recordset[0].password === password) {
-        if (result.recordset[0].role === 1) {
+        if (result.recordset[0].role === 0) {
           if (result.recordset[0].isVerify === 0) {
             response.status(400).json({
               errorCode: "MSG0046",

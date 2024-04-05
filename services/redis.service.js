@@ -9,6 +9,7 @@ class RedisService {
   }
 
   async set(key, value) {
+    console.log("set", key);
     return this.client.set(key, value);
   }
 

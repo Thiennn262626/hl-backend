@@ -10,7 +10,7 @@ async function checkRoleAdmin(request, response, next) {
 
     if (
       accountResult.recordset.length === 1 &&
-      accountResult.recordset[0].role === 0
+      accountResult.recordset[0].role === 1
     ) {
       next();
     } else {

@@ -24,7 +24,7 @@ router.post("/signin-email", async (request, response) => {
       });
     } else {
       if (result.recordset[0].password === password) {
-        if (result.recordset[0].role === 0) {
+        if (result.recordset[0].role === 1) {
           if (result.recordset[0].isVerify === 0) {
             response.status(400).json({
               errorCode: "MSG0046",
@@ -78,7 +78,7 @@ router.post("/signin-phone", async (request, response) => {
       });
     } else {
       if (result.recordset[0].password === password) {
-        if (result.recordset[0].role === 0) {
+        if (result.recordset[0].role === 1) {
           if (result.recordset[0].isVerify === 0) {
             response.status(400).json({
               errorCode: "MSG0046",

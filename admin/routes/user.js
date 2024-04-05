@@ -80,133 +80,133 @@ router.get(
   }
 );
 
-const { insertProduct1 } = require("./product");
-const e = require("express");
+// const { insertProduct1 } = require("./product");
+// const e = require("express");
 
-router.post("/import-file", async (request, response) => {
-  try {
-    const jsonDataitem = request.body.data.item;
-    const jsonDataImage = request.body.data.product_images.images;
-    const jsonDataAttributes = jsonDataitem.tier_variations;
-    const jsonDataProductSKUs = jsonDataitem.models;
-    const productMoreInfo = jsonDataitem.attributes;
+// router.post("/import-file", async (request, response) => {
+//   try {
+//     const jsonDataitem = request.body.data.item;
+//     const jsonDataImage = request.body.data.product_images.images;
+//     const jsonDataAttributes = jsonDataitem.tier_variations;
+//     const jsonDataProductSKUs = jsonDataitem.models;
+//     const productMoreInfo = jsonDataitem.attributes;
 
-    var productMadeIn = "";
-    if (productMoreInfo != null) {
-      productMoreInfo.forEach((element) => {
-        if (element.name == "Xuất xứ") {
-          productMadeIn = element.value;
-        }
-      });
-    }
+//     var productMadeIn = "";
+//     if (productMoreInfo != null) {
+//       productMoreInfo.forEach((element) => {
+//         if (element.name == "Xuất xứ") {
+//           productMadeIn = element.value;
+//         }
+//       });
+//     }
 
-    attributes = [];
-    productSKUs = [];
-    avatarMediaIDS = [];
-    var i = 0;
-    jsonDataAttributes.forEach((element) => {
-      const attribute = {
-        locAttributeName: element.name,
-        attributeValue: [],
-      };
-      var index = 0;
-      element.options.forEach(async (value) => {
-        if (i == 0) {
-          const link =
-            "https://down-vn.img.susercontent.com/file/" + jsonDataitem.image;
-          if (element.images != null) {
-            const link =
-              "https://down-vn.img.susercontent.com/file/" +
-              element.images[index];
-          }
-          const id = await insertMedia(link);
-          attribute.attributeValue.push({
-            locAttributeValueName: value,
-            mediaID: id,
-          });
-        } else {
-          attribute.attributeValue.push({
-            locAttributeValueName: value,
-          });
-        }
+//     attributes = [];
+//     productSKUs = [];
+//     avatarMediaIDS = [];
+//     var i = 0;
+//     jsonDataAttributes.forEach((element) => {
+//       const attribute = {
+//         locAttributeName: element.name,
+//         attributeValue: [],
+//       };
+//       var index = 0;
+//       element.options.forEach(async (value) => {
+//         if (i == 0) {
+//           const link =
+//             "https://down-vn.img.susercontent.com/file/" + jsonDataitem.image;
+//           if (element.images != null) {
+//             const link =
+//               "https://down-vn.img.susercontent.com/file/" +
+//               element.images[index];
+//           }
+//           const id = await insertMedia(link);
+//           attribute.attributeValue.push({
+//             locAttributeValueName: value,
+//             mediaID: id,
+//           });
+//         } else {
+//           attribute.attributeValue.push({
+//             locAttributeValueName: value,
+//           });
+//         }
 
-        index++;
-      });
-      i++;
-      attributes.push(attribute);
-    });
-    jsonDataProductSKUs.forEach((element) => {
-      const productSKU = {
-        totalStock: Math.floor(Math.random() * 1500) + 50,
-        price: element.price / 100000,
-        priceBefore: element.price_before_discount / 100000,
-        sold: element.sold,
-      };
-      productSKUs.push(productSKU);
-    });
+//         index++;
+//       });
+//       i++;
+//       attributes.push(attribute);
+//     });
+//     jsonDataProductSKUs.forEach((element) => {
+//       const productSKU = {
+//         totalStock: Math.floor(Math.random() * 1500) + 50,
+//         price: element.price / 100000,
+//         priceBefore: element.price_before_discount / 100000,
+//         sold: element.sold,
+//       };
+//       productSKUs.push(productSKU);
+//     });
 
-    for (const element of jsonDataImage) {
-      const link = "https://down-vn.img.susercontent.com/file/" + element;
-      const id = await insertMedia(link);
-      avatarMediaIDS.push({
-        mediaID: id,
-      });
-    }
-    var productDescription = jsonDataitem.description.replace(
-      /(?:\r\n|\r|\n)/g,
-      ". "
-    );
-    if (productDescription.length > 4000) {
-      productDescription = productDescription.substring(0, 4000);
-    }
-    result = {
-      productName: jsonDataitem.title,
-      productSlogan: jsonDataitem.title,
-      productDescription: productDescription,
-      productNotes: "productNotes",
-      productMadeIn: productMadeIn ? productMadeIn : "Viet Nam",
-      productUses: "productUses",
-      productIngredient: "productIngredient",
-      productObjectsOfUse: "productObjectsOfUse",
-      productPreserve: "productPreserve",
-      productInstructionsForUse: "productInstructionsForUse",
-      productHeight: 10,
-      productWidth: 15,
-      productLength: 15,
-      productWeight: 350,
-      productCategoryID: "CD080CF9-803F-4046-BD75-4DFD1E6DBB4A",
-      avatarMediaIDS: avatarMediaIDS,
-      attributes: attributes,
-      productSKUs: productSKUs,
-      item_id: jsonDataitem.item_id,
-    };
-    const result0 = await insertProduct1(result);
-    response.status(201).json({ result0: result0, title: jsonDataitem.title });
-  } catch (error) {
-    console.log(error);
-    response.status(500).json({
-      error: error,
-    });
-  }
-});
+//     for (const element of jsonDataImage) {
+//       const link = "https://down-vn.img.susercontent.com/file/" + element;
+//       const id = await insertMedia(link);
+//       avatarMediaIDS.push({
+//         mediaID: id,
+//       });
+//     }
+//     var productDescription = jsonDataitem.description.replace(
+//       /(?:\r\n|\r|\n)/g,
+//       ". "
+//     );
+//     if (productDescription.length > 4000) {
+//       productDescription = productDescription.substring(0, 4000);
+//     }
+//     result = {
+//       productName: jsonDataitem.title,
+//       productSlogan: jsonDataitem.title,
+//       productDescription: productDescription,
+//       productNotes: "productNotes",
+//       productMadeIn: productMadeIn ? productMadeIn : "Viet Nam",
+//       productUses: "productUses",
+//       productIngredient: "productIngredient",
+//       productObjectsOfUse: "productObjectsOfUse",
+//       productPreserve: "productPreserve",
+//       productInstructionsForUse: "productInstructionsForUse",
+//       productHeight: 10,
+//       productWidth: 15,
+//       productLength: 15,
+//       productWeight: 350,
+//       productCategoryID: "CD080CF9-803F-4046-BD75-4DFD1E6DBB4A",
+//       avatarMediaIDS: avatarMediaIDS,
+//       attributes: attributes,
+//       productSKUs: productSKUs,
+//       item_id: jsonDataitem.item_id,
+//     };
+//     const result0 = await insertProduct1(result);
+//     response.status(201).json({ result0: result0, title: jsonDataitem.title });
+//   } catch (error) {
+//     console.log(error);
+//     response.status(500).json({
+//       error: error,
+//     });
+//   }
+// });
 
-async function insertMedia(data) {
-  try {
-    console.log(data);
-    const query = `
-      INSERT INTO Media(linkString ,createdDate)
-      OUTPUT inserted.id AS id_media
-      SELECT @url AS linkString ,@createdDate AS createdDate
-    `;
-    const result = await database
-      .request()
-      .input("url", data)
-      .input("createdDate", new Date())
-      .query(query);
-    console.log(result.recordset[0].id_media);
-    return result.recordset[0].id_media;
-  } catch (error) {
-    console.log(error);
-    return null;
-  }
-}
+// async function insertMedia(data) {
+//   try {
+//     console.log(data);
+//     const query = `
+//       INSERT INTO Media(linkString ,createdDate)
+//       OUTPUT inserted.id AS id_media
+//       SELECT @url AS linkString ,@createdDate AS createdDate
+//     `;
+//     const result = await database
+//       .request()
+//       .input("url", data)
+//       .input("createdDate", new Date())
+//       .query(query);
+//     console.log(result.recordset[0].id_media);
+//     return result.recordset[0].id_media;
+//   } catch (error) {
+//     console.log(error);
+//     return null;
+//   }
+// }
