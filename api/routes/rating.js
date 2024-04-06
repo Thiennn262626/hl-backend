@@ -165,15 +165,12 @@ router.put("/update", checkAuth, checkRole, async (request, response) => {});
 router.get("/get_ratings_by_product", async (request, response) => {
   try {
     const product_id = request.query.itemid;
-    const limit = request.query.limit || 10;
-    const offset = request.query.offset || 0;
-    const type = request.query.type || 0;
-    const filter = request.query.filter || 0;
-    const variation_filters = request.query.variation_filters || "";
+    const limit = parseInt(request.query.limit) || 10;
+    const offset = parseInt(request.query.offset) || 0;
+    const type = parseInt(request.query.type) || 0; // 0: all, 1: 1 star, 2: 2 star, 3: 3 star, 4: 4 star, 5: 5 star
+    const filter = parseInt(request.query.filter) || 0; // 0: all, 1: with context, 2: with image
     if (!product_id) {
-      return response.status(400).json({
-        error: "Missing fields",
-      });
+      throw "Missing product_id";
     }
     query = `
     SELECT
@@ -272,9 +269,27 @@ router.get("/get_ratings_by_product", async (request, response) => {
       }
     });
     const resultArray = Object.values(resultMap);
+    // type and filter
+    const filteredResult = resultArray.filter((item) => {
+      const rating_star = item.rating_star;
+      const comment = item.comment;
+      const images = item.images;
+      if (type != 0 && rating_star != type) {
+        return false;
+      }
+      if (filter == 1 && !comment) {
+        return false;
+      }
+      if (filter == 2 && images.length == 0) {
+        return false;
+      }
+      return true;
+    });
+    // Phân trang
+    const paginatedResult = filteredResult.slice(offset, offset + limit);
     response.status(200).json({
-      ratings: resultArray,
-      total: resultArray.length,
+      ratings: paginatedResult,
+      total: filteredResult.length,
       item_rating_summary: {
         rating_total: resultArray.length,
         rating_count: rating_count,
@@ -285,17 +300,157 @@ router.get("/get_ratings_by_product", async (request, response) => {
   } catch (error) {
     console.log(error);
     response.status(500).json({
-      error: "Internal Server Error",
+      error: error,
     });
   }
 });
 
-// lay danh gia san pham theo id nguoi dung (trong trang ca nhan)
 router.get(
   "/get_ratings_by_user",
   checkAuth,
   checkRole,
-  async (request, response) => {}
+  async (request, response) => {
+    try {
+      const userid = request.query.userid;
+      const limit = parseInt(request.query.limit) || 10;
+      const offset = parseInt(request.query.offset) || 0;
+      const type = parseInt(request.query.type) || 0; // 0: all, 1: 1 star, 2: 2 star, 3: 3 star, 4: 4 star, 5: 5 star
+      const filter = parseInt(request.query.filter) || 0; // 0: all, 1: with context, 2: with image
+      if (!userid) {
+        throw "Missing user_id";
+      }
+      query = `
+      SELECT
+      r.id AS id,
+      p.id AS itemid,
+      p.name AS name,
+      ps.id AS modelid,
+      r.comment AS comment,
+      r.product_quality AS product_quality,
+      r.seller_service AS seller_service,
+      r.delivery_service AS delivery_service,
+      r.driver_service AS driver_service,
+      r.created_date AS ctime,
+      r.edit_date AS editable_date,
+      r.product_sku_option AS model_name,
+      u.id AS userid,
+      u.contactFullName AS author_username,
+      u.userAvatar AS author_portrait,
+      rm.linkString AS image,
+      r.comment_reply AS comment_reply,
+      r.userid_reply AS userid_reply,
+      r.created_date_reply AS ctime_reply
+      FROM Product AS p
+      JOIN ProductSku AS ps ON p.id = ps.idProduct
+      JOIN Rating AS r ON ps.id = r.product_sku_id
+      LEFT JOIN RatingMedia AS rm ON r.id = rm.id_rating
+      JOIN [User] AS u ON r.id_user = u.id
+      WHERE u.id = @userid
+      ORDER BY r.created_date DESC
+      `;
+      const result = await database
+        .request()
+        .input("userid", userid)
+        .query(query);
+      const resultMap = {};
+      const rating_count = [0, 0, 0, 0, 0];
+      let rcount_with_context = 0;
+      let rcount_with_image = 0;
+      result.recordset.forEach((item) => {
+        const { id, image, ...rest } = item;
+        if (!resultMap[id]) {
+          resultMap[id] = {
+            rating_id: id,
+            itemid: item.itemid,
+            comment: item.comment ? item.comment : null,
+            rating_star: item.product_quality ? item.product_quality : null,
+            ctime: item.ctime ? item.ctime : null,
+            editable: item.editable_date ? 1 : null,
+            editable_date: item.editable_date ? item.editable_date : null,
+            userid: item.userid,
+            author_username: item.author_username,
+            author_portrait:
+              item.author_portrait ===
+              "https://down-vn.img.susercontent.com/file/"
+                ? null
+                : item.author_portrait,
+            product_items: [
+              {
+                itemid: item.itemid,
+                name: item.name,
+                modelid: item.modelid,
+                model_name: item.model_name ? item.model_name : null,
+              },
+            ],
+            detailed_rating: {
+              product_quality: item.product_quality,
+              seller_service: item.seller_service ? item.seller_service : null,
+              delivery_service: item.delivery_service
+                ? item.delivery_service
+                : null,
+              driver_service: item.driver_service ? item.driver_service : null,
+            },
+            images: [],
+            ItemRatingReply: item.comment_reply
+              ? {
+                  itemid: item.itemid,
+                  ctime: item.ctime_reply,
+                  userid: item.userid_reply,
+                  comment: item.comment_reply,
+                }
+              : null,
+          };
+          if (item.comment) {
+            rcount_with_context++;
+          }
+          if (item.image) {
+            rcount_with_image++;
+          }
+          const index = item.product_quality - 1;
+          if (index >= 0 && index < 5) {
+            rating_count[index]++;
+          }
+        }
+        if (image) {
+          resultMap[id].images.push(image);
+        }
+      });
+      const resultArray = Object.values(resultMap);
+      // type and filter
+      const filteredResult = resultArray.filter((item) => {
+        const rating_star = item.rating_star;
+        const comment = item.comment;
+        const images = item.images;
+        if (type != 0 && rating_star != type) {
+          return false;
+        }
+        if (filter == 1 && !comment) {
+          return false;
+        }
+        if (filter == 2 && images.length == 0) {
+          return false;
+        }
+        return true;
+      });
+      // Phân trang
+      const paginatedResult = filteredResult.slice(offset, offset + limit);
+      response.status(200).json({
+        ratings: paginatedResult,
+        total: filteredResult.length,
+        item_rating_summary: {
+          rating_total: resultArray.length,
+          rating_count: rating_count,
+          rcount_with_context: rcount_with_context,
+          rcount_with_image: rcount_with_image,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      response.status(500).json({
+        error: error,
+      });
+    }
+  }
 );
 
 // lay chi tiet danh gia san pham theo id don hang
