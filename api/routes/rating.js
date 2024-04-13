@@ -138,30 +138,63 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
 //   ],
 // };
 // sua danh gia san pham
-router.put("/update", checkAuth, checkRole, async (request, response) => { });
+router.put("/update", checkAuth, checkRole, async (request, response) => {});
 
-// xoa danh gia san pham
-// router.delete("/delete", checkAuth, checkRole, async (request, response) => {});
-// {
-//    "ratings":[
+router.get("/get_summary_ratings_by_product", async (request, response) => {
+  try {
+    const product_id = request.query.product_id;
+    if (!product_id) {
+      throw "Missing product_id";
+    }
+    query = `
+    SELECT
+    COUNT(r.id) AS rating_total,
+    SUM(CASE WHEN r.product_quality = 1 THEN 1 ELSE 0 END) AS rating_1_star,
+    SUM(CASE WHEN r.product_quality = 2 THEN 1 ELSE 0 END) AS rating_2_star,
+    SUM(CASE WHEN r.product_quality = 3 THEN 1 ELSE 0 END) AS rating_3_star,
+    SUM(CASE WHEN r.product_quality = 4 THEN 1 ELSE 0 END) AS rating_4_star,
+    SUM(CASE WHEN r.product_quality = 5 THEN 1 ELSE 0 END) AS rating_5_star
+    FROM Product AS p
+    JOIN ProductSku AS ps ON p.id = ps.idProduct
+    JOIN Rating AS r ON ps.id = r.product_sku_id
+    JOIN [User] AS u ON r.id_user = u.id
+    WHERE p.id =  @product_id
+    `;
+    const result = await database
+      .request()
+      .input("product_id", product_id)
+      .query(query);
+    const rating_count = [
+      result.recordset[0].rating_1_star,
+      result.recordset[0].rating_2_star,
+      result.recordset[0].rating_3_star,
+      result.recordset[0].rating_4_star,
+      result.recordset[0].rating_5_star,
+    ];
+    const rating_total = result.recordset[0].rating_total || 0;
+    response.status(200).json({
+      item_rating_summary: {
+        rating_avg:
+          rating_total > 0
+            ? parseFloat(
+                (
+                  rating_count.reduce((a, b, i) => a + b * (i + 1), 0) /
+                  rating_total
+                ).toFixed(1)
+              )
+            : 0,
+        rating_total: rating_total,
+        rating_count: rating_count,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    response.status(500).json({
+      error: error,
+    });
+  }
+});
 
-//    ],
-//    "total":56,
-//    "item_rating_summary":{
-//       "rating_total":56,
-//       "rating_count":[
-//          0,
-//          0,
-//          0,
-//          1,
-//          55
-//       ],
-//       "rcount_with_context":55,
-//       "rcount_with_image":52
-//    }
-// }
-
-// lay danh gia san pham theo id product (chi tiet san pham)
 router.get("/get_ratings_by_product", async (request, response) => {
   try {
     const product_id = request.query.product_id;
@@ -224,7 +257,7 @@ router.get("/get_ratings_by_product", async (request, response) => {
           author_username: item.author_username,
           author_portrait:
             item.author_portrait ===
-              "https://down-vn.img.susercontent.com/file/"
+            "https://down-vn.img.susercontent.com/file/"
               ? null
               : item.author_portrait,
           product_items: [
@@ -246,11 +279,11 @@ router.get("/get_ratings_by_product", async (request, response) => {
           images: [],
           ItemRatingReply: item.comment_reply
             ? {
-              itemid: item.itemid,
-              ctime: item.ctime_reply,
-              userid: item.userid_reply,
-              comment: item.comment_reply,
-            }
+                itemid: item.itemid,
+                ctime: item.ctime_reply,
+                userid: item.userid_reply,
+                comment: item.comment_reply,
+              }
             : null,
         };
         if (item.comment) {
@@ -291,6 +324,15 @@ router.get("/get_ratings_by_product", async (request, response) => {
       ratings: paginatedResult,
       total: filteredResult.length,
       item_rating_summary: {
+        rating_avg:
+          resultArray.length > 0
+            ? parseFloat(
+                (
+                  rating_count.reduce((a, b, i) => a + b * (i + 1), 0) /
+                  resultArray.length
+                ).toFixed(1)
+              )
+            : 0,
         rating_total: resultArray.length,
         rating_count: rating_count,
         rcount_with_context: rcount_with_context,
@@ -311,7 +353,12 @@ router.get(
   checkRole,
   async (request, response) => {
     try {
-      const userid = request.query.userid;
+      const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
+      const userResult = await database
+        .request()
+        .input("idAccount", request.userData.uuid)
+        .query(queryUser);
+      const userid = userResult.recordset[0].id;
       const limit = parseInt(request.query.limit) || 10;
       const offset = parseInt(request.query.offset) || 0;
       const type = parseInt(request.query.type) || 0; // 0: all, 1: 1 star, 2: 2 star, 3: 3 star, 4: 4 star, 5: 5 star
@@ -371,7 +418,7 @@ router.get(
             author_username: item.author_username,
             author_portrait:
               item.author_portrait ===
-                "https://down-vn.img.susercontent.com/file/"
+              "https://down-vn.img.susercontent.com/file/"
                 ? null
                 : item.author_portrait,
             product_items: [
@@ -393,11 +440,11 @@ router.get(
             images: [],
             ItemRatingReply: item.comment_reply
               ? {
-                itemid: item.itemid,
-                ctime: item.ctime_reply,
-                userid: item.userid_reply,
-                comment: item.comment_reply,
-              }
+                  itemid: item.itemid,
+                  ctime: item.ctime_reply,
+                  userid: item.userid_reply,
+                  comment: item.comment_reply,
+                }
               : null,
           };
           if (item.comment) {
@@ -438,6 +485,15 @@ router.get(
         ratings: paginatedResult,
         total: filteredResult.length,
         item_rating_summary: {
+          rating_avg:
+            resultArray.length > 0
+              ? parseFloat(
+                  (
+                    rating_count.reduce((a, b, i) => a + b * (i + 1), 0) /
+                    resultArray.length
+                  ).toFixed(1)
+                )
+              : 0,
           rating_total: resultArray.length,
           rating_count: rating_count,
           rcount_with_context: rcount_with_context,
@@ -458,7 +514,7 @@ router.get(
   "/get_ratings_by_order",
   checkAuth,
   checkRole,
-  async (request, response) => { }
+  async (request, response) => {}
 );
 
 router.post(
