@@ -533,19 +533,20 @@ router.post(
 //     };
 //     const dataJsonReply = dataJson.ItemRatingReply;
 //     const dataJsonRating = dataJson.detailed_rating;
-//     console.log(dataJson.itemid);
+//     console.log("dataJson.itemid: ", dataJson.itemid);
 //     // check null edit_date
 //     dataJson.editable_date = dataJson.editable_date
 //       ? dataJson.editable_date
 //       : null;
-//     queryGetProduct = `
+//     console.log("dataJson.editable_date: ", dataJson.editable_date);
+//     const queryGetProduct = `
 //     SELECT id FROM Product WHERE item_id = @modelid
 //     `;
 //     const result1 = await database
 //       .request()
-//       .input("modelid", dataJson.itemid)
+//       .input("modelid", dataJson.itemid.toString().trim())
 //       .query(queryGetProduct);
-//     console.log(result1);
+//     console.log("result1: ", result1.recordset);
 //     if (result1.recordset.length == 0) {
 //       response.status(400).json({
 //         error: "Product not found",
@@ -608,7 +609,7 @@ router.post(
 //           .input("driver_service", dataJsonRating.driver_service)
 //           .input("comment", dataJson.comment)
 //           .input("product_sku_option", dataJson.product_items[0].model_name)
-//           .input("id_user_num", dataJsonUser.userid.toString())
+//           .input("id_user_num", dataJsonUser.userid.toString().trim())
 //           .input("comment_reply", dataJsonReply ? dataJsonReply.comment : null)
 //           .input(
 //             "userid_reply",

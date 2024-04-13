@@ -164,7 +164,7 @@ router.get(
 //       productSlogan: jsonDataitem.title,
 //       productDescription: productDescription,
 //       productNotes: "productNotes",
-//       productMadeIn: productMadeIn ? productMadeIn : "Viet Nam",
+//       productMadeIn: productMadeIn ? productMadeIn : "Việt Nam",
 //       productUses: "productUses",
 //       productIngredient: "productIngredient",
 //       productObjectsOfUse: "productObjectsOfUse",
