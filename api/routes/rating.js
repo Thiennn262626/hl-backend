@@ -138,7 +138,7 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
 //   ],
 // };
 // sua danh gia san pham
-router.put("/update", checkAuth, checkRole, async (request, response) => {});
+router.put("/update", checkAuth, checkRole, async (request, response) => { });
 
 // xoa danh gia san pham
 // router.delete("/delete", checkAuth, checkRole, async (request, response) => {});
@@ -164,7 +164,7 @@ router.put("/update", checkAuth, checkRole, async (request, response) => {});
 // lay danh gia san pham theo id product (chi tiet san pham)
 router.get("/get_ratings_by_product", async (request, response) => {
   try {
-    const product_id = request.query.itemid;
+    const product_id = request.query.product_id;
     const limit = parseInt(request.query.limit) || 10;
     const offset = parseInt(request.query.offset) || 0;
     const type = parseInt(request.query.type) || 0; // 0: all, 1: 1 star, 2: 2 star, 3: 3 star, 4: 4 star, 5: 5 star
@@ -224,7 +224,7 @@ router.get("/get_ratings_by_product", async (request, response) => {
           author_username: item.author_username,
           author_portrait:
             item.author_portrait ===
-            "https://down-vn.img.susercontent.com/file/"
+              "https://down-vn.img.susercontent.com/file/"
               ? null
               : item.author_portrait,
           product_items: [
@@ -246,11 +246,11 @@ router.get("/get_ratings_by_product", async (request, response) => {
           images: [],
           ItemRatingReply: item.comment_reply
             ? {
-                itemid: item.itemid,
-                ctime: item.ctime_reply,
-                userid: item.userid_reply,
-                comment: item.comment_reply,
-              }
+              itemid: item.itemid,
+              ctime: item.ctime_reply,
+              userid: item.userid_reply,
+              comment: item.comment_reply,
+            }
             : null,
         };
         if (item.comment) {
@@ -371,7 +371,7 @@ router.get(
             author_username: item.author_username,
             author_portrait:
               item.author_portrait ===
-              "https://down-vn.img.susercontent.com/file/"
+                "https://down-vn.img.susercontent.com/file/"
                 ? null
                 : item.author_portrait,
             product_items: [
@@ -393,11 +393,11 @@ router.get(
             images: [],
             ItemRatingReply: item.comment_reply
               ? {
-                  itemid: item.itemid,
-                  ctime: item.ctime_reply,
-                  userid: item.userid_reply,
-                  comment: item.comment_reply,
-                }
+                itemid: item.itemid,
+                ctime: item.ctime_reply,
+                userid: item.userid_reply,
+                comment: item.comment_reply,
+              }
               : null,
           };
           if (item.comment) {
@@ -458,7 +458,7 @@ router.get(
   "/get_ratings_by_order",
   checkAuth,
   checkRole,
-  async (request, response) => {}
+  async (request, response) => { }
 );
 
 router.post(
