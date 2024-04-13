@@ -46,6 +46,24 @@ async function getProductDetail(idProduct) {
       .input("idProduct", idProduct)
       .query(queryProduct);
 
+    const query_summary = `
+    SELECT
+    COUNT(r.id) AS rating_total,
+    SUM(CASE WHEN r.product_quality = 1 THEN 1 ELSE 0 END) AS rating_1_star,
+    SUM(CASE WHEN r.product_quality = 2 THEN 1 ELSE 0 END) AS rating_2_star,
+    SUM(CASE WHEN r.product_quality = 3 THEN 1 ELSE 0 END) AS rating_3_star,
+    SUM(CASE WHEN r.product_quality = 4 THEN 1 ELSE 0 END) AS rating_4_star,
+    SUM(CASE WHEN r.product_quality = 5 THEN 1 ELSE 0 END) AS rating_5_star
+    FROM Product AS p
+    JOIN ProductSku AS ps ON p.id = ps.idProduct
+    JOIN Rating AS r ON ps.id = r.product_sku_id
+    JOIN [User] AS u ON r.id_user = u.id
+    WHERE p.id =  @product_id
+    `;
+    const result_summary = await database
+      .request()
+      .input("product_id", idProduct)
+      .query(query_summary);
     const resultMap = {};
     result.recordset.forEach((item) => {
       const { productID, productSKUID, mediaID } = item;
@@ -81,6 +99,7 @@ async function getProductDetail(idProduct) {
             linkString: item.linkStringCate,
           },
           productSKU: [],
+          item_rating_summary: null,
         };
       }
       const mediaExist = resultMap[productID].medias.some(
@@ -110,7 +129,28 @@ async function getProductDetail(idProduct) {
         });
       }
     });
-
+    const rating_count = [
+      result_summary.recordset[0].rating_1_star,
+      result_summary.recordset[0].rating_2_star,
+      result_summary.recordset[0].rating_3_star,
+      result_summary.recordset[0].rating_4_star,
+      result_summary.recordset[0].rating_5_star,
+    ];
+    const rating_total = result_summary.recordset[0].rating_total || 0;
+    const item_rating_summary = {
+      rating_avg:
+        rating_total > 0
+          ? parseFloat(
+              (
+                rating_count.reduce((a, b, i) => a + b * (i + 1), 0) /
+                rating_total
+              ).toFixed(1)
+            )
+          : 0,
+      rating_total: rating_total,
+      rating_count: rating_count,
+    };
+    resultMap[idProduct].item_rating_summary = item_rating_summary;
     const resultArray = Object.values(resultMap);
     return resultArray[0];
   } catch (error) {
@@ -120,6 +160,12 @@ async function getProductDetail(idProduct) {
 router.get("/get-detail", async (request, response) => {
   try {
     const idProduct = request.query.ProductID;
+    if (!idProduct) {
+      response.status(400).json({
+        error: "ProductID is required",
+      });
+      return;
+    }
     const result = await getProductDetail(idProduct);
     response.status(200).json(result);
   } catch (error) {
