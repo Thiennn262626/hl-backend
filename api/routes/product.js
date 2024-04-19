@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const database = require("../../config");
 const RedisService = require("../../services/redis.service");
+const axios = require("axios");
 
 async function getProductDetail(idProduct) {
   try {
@@ -752,43 +753,32 @@ router.get("/get-list-same-category", async (request, response) => {
     var productCategoryID = request.query.productCategoryID;
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
-    var search = request.query.search ? request.query.search.toLowerCase() : "";
 
-    const resultArray = await getListProductSameCategory(
-      productID,
-      productCategoryID
+    let resultArray = await RedisService.get("listProduct");
+    if (!resultArray) {
+      resultArray = await getListProduct();
+      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.expire("listProduct", 300);
+    } else {
+      resultArray = JSON.parse(resultArray);
+    }
+
+    //call api from web
+    res = await axios.get(
+      "http://127.0.0.1:8000/api/recommend-by-product?product_id=" + productID
     );
-    // const filteredResult = filteredResult1.filter((item) => {
-    //   const productNameMatch = item.productName
-    //     ? item.productName.toLowerCase().includes(search)
-    //     : false;
-    //   const productDescriptionMatch = item.productDescription
-    //     ? item.productDescription.toLowerCase().includes(search)
-    //     : false;
-    //   const productSloganMatch = item.productSlogan
-    //     ? item.productSlogan.toLowerCase().includes(search)
-    //     : false;
-    //   const productNotesMatch = item.productNotes
-    //     ? item.productNotes.toLowerCase().includes(search)
-    //     : false;
-    //   const productMadeInMatch = item.productMadeIn
-    //     ? item.productMadeIn.toLowerCase().includes(search)
-    //     : false;
-    //   return (
-    //     productNameMatch ||
-    //     productDescriptionMatch ||
-    //     productSloganMatch ||
-    //     productNotesMatch ||
-    //     productMadeInMatch
-    //   );
-    // });
-
+    if (res.data && res.data.result) {
+      id_list = res.data.result;
+      resultArray = resultArray.filter((item) =>
+        id_list.includes(item.productID)
+      );
+    }
     // Phân trang
     const paginatedResult = resultArray.slice(offset, offset + limit);
 
     response
       .status(200)
-      .json({ result: paginatedResult, total: paginatedResult.length });
+      .json({ result: paginatedResult, total: resultArray.length });
   } catch (error) {
     console.error(error);
     response.status(500).json({ errorCode: "Internal Server Error" });

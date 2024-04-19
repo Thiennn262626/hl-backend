@@ -3,10 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "workspaces": [
+    "hl-backend"
+  ],
   "scripts": {
     "test": "echo 'No tests to run' && exit 0",
     "redis": "redis-server",
-    "start": "nodemon index.js"
+    "start:server": "nodemon index.js"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +18,7 @@
     "axios": "^1.5.1",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
     "csv-parser": "^3.0.0",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
