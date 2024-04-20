@@ -1,13 +1,15 @@
 FROM node:18.17.1
 
-EXPOSE 80
+EXPOSE 3000
 
 WORKDIR /app
 
-COPY package*.json ./
+RUN npm i npm@latest -g
+
+COPY package.json package-lock.json ./
 
 RUN npm install
 
 COPY . .
 
-CMD ["npm", "run", "start:server"]
+CMD ["node", "Server.js"]

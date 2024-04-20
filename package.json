@@ -2,14 +2,15 @@
   "name": "hlshop",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "Server.js",
   "workspaces": [
     "hl-backend"
   ],
   "scripts": {
     "test": "echo 'No tests to run' && exit 0",
     "redis": "redis-server",
-    "start:server": "nodemon index.js"
+    "start:server": "node Server.js",
+    "start:dev": "nodemon Server.js"
   },
   "keywords": [],
   "author": "",

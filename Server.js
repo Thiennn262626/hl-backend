@@ -1,17 +1,16 @@
 const express = require("express");
 var cors = require("cors");
-const bodyParser = require("body-parser");
-require("dotenv").config();
+// require("dotenv").config();
 const path = require("path");
 const app = express();
 app.use(cors());
 
-const port = 80;
+const port = 3000;
 
 const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
 
-const initSql = require("./dbs/init.sqlserver");
+// const initSql = require("./dbs/init.sqlserver");
 
 //import file
 const accountRouter = require("./api/routes/account");
@@ -63,12 +62,13 @@ app.use("/api/hlshop/admin/order", adminOrderRouter);
 app.use("/api/hlshop/admin/users", adminUserRouter);
 
 app.get("/", function (request, response) {
-  response.send("Hello word, this is hlshop");
+  response.send({
+    message: "Welcome to HLShop API",
+  });
 });
 
-const router = require("express").Router();
-
-app.use("/", router);
+// const router = require("express").Router();
+// app.use("/", router);
 app.listen(port, () =>
   console.log(`Server is running on port http://localhost:${port}`)
 );

@@ -3,3 +3,8 @@ node_modules
 yarn.lock
 .git
 .github
+.vscode
+.idea
+.env.example
+.history
+.gitignore

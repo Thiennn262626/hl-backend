@@ -1,9 +1,12 @@
 const express = require("express");
+const axios = require("axios");
 
 const router = express.Router();
+
 const database = require("../../config");
 const RedisService = require("../../services/redis.service");
-const axios = require("axios");
+const checkAuth = require("../../middleware/check_auth");
+const checkRole = require("../../middleware/check_role_user");
 
 async function getProductDetail(idProduct) {
   try {
@@ -255,7 +258,7 @@ router.get("/get-list-best-seller", async (request, response) => {
     if (!resultArray) {
       resultArray = await getListProduct();
       RedisService.set("listProduct", JSON.stringify(resultArray));
-      RedisService.expire("listProduct", 300);
+      RedisService.expire("listProduct", 3000);
     } else {
       resultArray = JSON.parse(resultArray);
     }
@@ -347,6 +350,134 @@ router.get("/get-list-best-seller", async (request, response) => {
   }
 });
 
+router.get(
+  "/get-list-recommend-by-user",
+  checkAuth,
+  checkRole,
+  async (request, response) => {
+    try {
+      const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
+      const userResult = await database
+        .request()
+        .input("idAccount", request.userData.uuid)
+        .query(queryUser);
+      const userid = userResult.recordset[0].id;
+      var offset = parseInt(request.query.offset) || 0;
+      var limit = parseInt(request.query.limit) || 10;
+      var search = request.query.search
+        ? request.query.search.toLowerCase()
+        : "";
+      var sortBy = parseInt(request.query.sortBy);
+      var minAmount = parseInt(request.query.minAmount);
+      var maxAmount = parseInt(request.query.maxAmount);
+
+      let resultArray = await RedisService.get("listProduct");
+      if (!resultArray) {
+        resultArray = await getListProduct();
+        RedisService.set("listProduct", JSON.stringify(resultArray));
+        RedisService.expire("listProduct", 3000);
+      } else {
+        resultArray = JSON.parse(resultArray);
+      }
+
+      resultArray.sort((a, b) => {
+        return new Date(b.createdDate) - new Date(a.createdDate);
+      });
+
+      const filteredResult = resultArray.filter((item) => {
+        const productNameMatch = item.productName
+          ? item.productName.toLowerCase().includes(search)
+          : false;
+        const productDescriptionMatch = item.productDescription
+          ? item.productDescription.toLowerCase().includes(search)
+          : false;
+        const productSloganMatch = item.productSlogan
+          ? item.productSlogan.toLowerCase().includes(search)
+          : false;
+        const productNotesMatch = item.productNotes
+          ? item.productNotes.toLowerCase().includes(search)
+          : false;
+        const productMadeInMatch = item.productMadeIn
+          ? item.productMadeIn.toLowerCase().includes(search)
+          : false;
+        const priceMatch =
+          !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
+            ? item.productSKU &&
+              item.productSKU.length > 0 &&
+              item.productSKU[0].price >= minAmount &&
+              item.productSKU[0].price <= maxAmount
+            : true;
+        return (
+          (productNameMatch ||
+            productDescriptionMatch ||
+            productSloganMatch ||
+            productNotesMatch ||
+            productMadeInMatch) &&
+          priceMatch
+        );
+      });
+      //sortBy: 0: Giá tăng dần, 1: Giá giảm dần, 2: mới nhất, 3: cũ nhất, 4: phổ biến nhất, 5: bán chạy nhất
+      switch (sortBy) {
+        case 0:
+          filteredResult.sort((a, b) => {
+            return a.productSKU[0].price - b.productSKU[0].price;
+          });
+          break;
+        case 1:
+          filteredResult.sort((a, b) => {
+            return b.productSKU[0].price - a.productSKU[0].price;
+          });
+          break;
+        case 2:
+          filteredResult.sort((a, b) => {
+            return new Date(b.createdDate) - new Date(a.createdDate);
+          });
+          break;
+        case 3:
+          filteredResult.sort((a, b) => {
+            return new Date(a.createdDate) - new Date(b.createdDate);
+          });
+          break;
+
+        case 4:
+          filteredResult.sort((a, b) => {
+            return (
+              b.sellQuantity / b.productSKU[0].price -
+              a.sellQuantity / a.productSKU[0].price
+            );
+          });
+          break;
+        case 5:
+          filteredResult.sort((a, b) => {
+            return b.sellQuantity - a.sellQuantity;
+          });
+          break;
+        default:
+          break;
+      }
+      //call api from web
+      res = await axios.get(
+        "http://127.0.0.1:8000/api/recommend-by-user?user_id=" + userid
+      );
+      if (res.data && res.data.result) {
+        id_list = res.data.result;
+        resultArray = resultArray.filter((item) =>
+          id_list.includes(item.productID)
+        );
+      }
+      // Phân trang
+      const paginatedResult = filteredResult.slice(offset, offset + limit);
+
+      response
+        .status(200)
+        .json({ result: paginatedResult, total: resultArray.length });
+    } catch (error) {
+      console.error(error);
+      response.status(500).json({ errorCode: "Internal Server Error" });
+    }
+  }
+);
+
 router.get("/get-list-new", async (request, response) => {
   try {
     var offset = parseInt(request.query.offset) || 0;
@@ -360,7 +491,7 @@ router.get("/get-list-new", async (request, response) => {
     if (!resultArray) {
       resultArray = await getListProduct();
       RedisService.set("listProduct", JSON.stringify(resultArray));
-      RedisService.expire("listProduct", 300);
+      RedisService.expire("listProduct", 3000);
     } else {
       resultArray = JSON.parse(resultArray);
     }
@@ -464,7 +595,7 @@ router.get("/get-list-hot", async (request, response) => {
     if (!resultArray) {
       resultArray = await getListProduct();
       RedisService.set("listProduct", JSON.stringify(resultArray));
-      RedisService.expire("listProduct", 300);
+      RedisService.expire("listProduct", 3000);
     } else {
       resultArray = JSON.parse(resultArray);
     }
@@ -583,7 +714,7 @@ router.get("/get-list-good-price-today", async (request, response) => {
     if (!resultArray) {
       resultArray = await getListProduct();
       RedisService.set("listProduct", JSON.stringify(resultArray));
-      RedisService.expire("listProduct", 300);
+      RedisService.expire("listProduct", 3000);
     } else {
       resultArray = JSON.parse(resultArray);
     }
@@ -681,76 +812,76 @@ router.get("/get-list-good-price-today", async (request, response) => {
   }
 });
 
-async function getListProductSameCategory(idProduct, idCategory) {
-  try {
-    const queryProduct = `
-      SELECT 
-      p.id AS productID,
-      p.name AS productName,
-      p.description AS productDescription,
-      p.slogan AS productSlogan,
-      p.notes AS productNotes,
-      p.madeIn AS productMadeIn,
-      ps.id AS productSKUID,
-      ps.price AS price,
-      ps.priceBefore AS priceBefore,
-      m.id AS mediaID,
-      m.linkString AS linkString,
-      m.title AS title,
-      m.description AS description
-      FROM Product as p
-      JOIN ProductSku as ps ON p.id = ps.idProduct
-      JOIN Media as m ON p.id = m.id_product
-      WHERE p.id_Category = @idCategory AND p.id != @idProduct AND ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
-      ORDER BY p.sellQuantity DESC
-    `;
+// async function getListProductSameCategory(idProduct, idCategory) {
+//   try {
+//     const queryProduct = `
+//       SELECT
+//       p.id AS productID,
+//       p.name AS productName,
+//       p.description AS productDescription,
+//       p.slogan AS productSlogan,
+//       p.notes AS productNotes,
+//       p.madeIn AS productMadeIn,
+//       ps.id AS productSKUID,
+//       ps.price AS price,
+//       ps.priceBefore AS priceBefore,
+//       m.id AS mediaID,
+//       m.linkString AS linkString,
+//       m.title AS title,
+//       m.description AS description
+//       FROM Product as p
+//       JOIN ProductSku as ps ON p.id = ps.idProduct
+//       JOIN Media as m ON p.id = m.id_product
+//       WHERE p.id_Category = @idCategory AND p.id != @idProduct AND ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
+//       ORDER BY p.sellQuantity DESC
+//     `;
 
-    const result = await database
-      .request()
-      .input("idCategory", idCategory)
-      .input("idProduct", idProduct)
-      .query(queryProduct);
+//     const result = await database
+//       .request()
+//       .input("idCategory", idCategory)
+//       .input("idProduct", idProduct)
+//       .query(queryProduct);
 
-    const resultMap = {};
-    result.recordset.forEach((item) => {
-      const { productID, productSKUID, mediaID } = item;
-      if (!resultMap[productID]) {
-        resultMap[productID] = {
-          productID: productID,
-          productName: item.productName,
-          productDescription: item.productDescription,
-          productSlogan: item.productSlogan,
-          productNotes: item.productNotes,
-          productMadeIn: item.productMadeIn,
-          medias: [
-            {
-              mediaID: mediaID,
-              linkString: item.linkString,
-              title: item.title ? item.title : "",
-              description: item.description ? item.description : "",
-            },
-          ],
-          productSKU: [
-            {
-              productSKUID: productSKUID,
-              price: item.price,
-              priceBefore: item.priceBefore,
-            },
-          ],
-        };
-      }
-    });
+//     const resultMap = {};
+//     result.recordset.forEach((item) => {
+//       const { productID, productSKUID, mediaID } = item;
+//       if (!resultMap[productID]) {
+//         resultMap[productID] = {
+//           productID: productID,
+//           productName: item.productName,
+//           productDescription: item.productDescription,
+//           productSlogan: item.productSlogan,
+//           productNotes: item.productNotes,
+//           productMadeIn: item.productMadeIn,
+//           medias: [
+//             {
+//               mediaID: mediaID,
+//               linkString: item.linkString,
+//               title: item.title ? item.title : "",
+//               description: item.description ? item.description : "",
+//             },
+//           ],
+//           productSKU: [
+//             {
+//               productSKUID: productSKUID,
+//               price: item.price,
+//               priceBefore: item.priceBefore,
+//             },
+//           ],
+//         };
+//       }
+//     });
 
-    const resultArray = Object.values(resultMap);
-    return resultArray;
-  } catch (error) {
-    throw error;
-  }
-}
+//     const resultArray = Object.values(resultMap);
+//     return resultArray;
+//   } catch (error) {
+//     throw error;
+//   }
+// }
 router.get("/get-list-same-category", async (request, response) => {
   try {
     var productID = request.query.productID;
-    var productCategoryID = request.query.productCategoryID;
+    // var productCategoryID = request.query.productCategoryID;
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
 
@@ -758,7 +889,7 @@ router.get("/get-list-same-category", async (request, response) => {
     if (!resultArray) {
       resultArray = await getListProduct();
       RedisService.set("listProduct", JSON.stringify(resultArray));
-      RedisService.expire("listProduct", 300);
+      RedisService.expire("listProduct", 3000);
     } else {
       resultArray = JSON.parse(resultArray);
     }
