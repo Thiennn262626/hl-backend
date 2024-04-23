@@ -175,7 +175,7 @@ router.get("/get-detail", async (request, response) => {
   } catch (error) {
     console.log(error);
     response.status(500).json({
-      error: "Internal Server Error",
+      error: error,
     });
   }
 });
@@ -346,7 +346,7 @@ router.get("/get-list-best-seller", async (request, response) => {
       .json({ result: paginatedResult, total: filteredResult.length });
   } catch (error) {
     console.error(error);
-    response.status(500).json({ errorCode: "Internal Server Error" });
+    response.status(500).json({ errorCode: error });
   }
 });
 
@@ -579,7 +579,7 @@ router.get("/get-list-new", async (request, response) => {
       .json({ result: paginatedResult, total: filteredResult.length });
   } catch (error) {
     console.error(error);
-    response.status(500).json({ errorCode: "Internal Server Error" });
+    response.status(500).json({ errorCode: error });
   }
 });
 
@@ -697,7 +697,7 @@ router.get("/get-list-hot", async (request, response) => {
       .json({ result: paginatedResult, total: filteredResult.length });
   } catch (error) {
     console.error(error);
-    response.status(500).json({ errorCode: "Internal Server Error" });
+    response.status(500).json({ errorCode: error });
   }
 });
 
