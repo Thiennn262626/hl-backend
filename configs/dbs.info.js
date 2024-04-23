@@ -10,11 +10,9 @@ module.exports = {
       password: process.env.AZURE_SQL_SERVER_PASSWORD,
       database: process.env.AZURE_SQL_SERVER_DATABASE_NAME,
       server: process.env.AZURE_SQL_SERVER_HOST_NAME,
-      connectionTimeout: 10000,
-      stream: false,
       options: {
-        enableArithAbort: true,
         encrypt: true,
+        trustServerCertificate: false,
       },
       pool: {
         max: 10,

@@ -64,11 +64,25 @@ app.use("/api/hlshop/admin/users", adminUserRouter);
 const { name_database_01 } = require("./configs/dbs.info");
 const { redis_info } = require("./configs/dbs.info");
 const config = name_database_01.config;
+const sql = require("mssql");
+const pool = new sql.ConnectionPool(config);
+var check = "false";
+const connection = pool
+  .connect()
+  .then(() => {
+    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...");
+    check = "true";
+  })
+  .catch((err) => {
+    console.error("Lỗi kết nối: " + err.stack);
+    check = "false" + err.stack;
+  });
 app.get("/", function (request, response) {
   response.send({
     message: "Welcome to HLShop API",
     config: config,
     redis: redis_info,
+    check: check,
   });
 });
 
