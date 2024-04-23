@@ -81,8 +81,6 @@ const connection = pool
 app.get("/", function (request, response) {
   response.send({
     message: "Welcome to HLShop API",
-    config: config,
-    redis: redis_info,
     check: check,
   });
 });
