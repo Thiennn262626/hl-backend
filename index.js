@@ -1,6 +1,5 @@
 const express = require("express");
 var cors = require("cors");
-require("dotenv").config();
 const path = require("path");
 const app = express();
 app.use(cors());
@@ -61,14 +60,9 @@ app.use("/api/hlshop/admin/product", adminProductRouter);
 app.use("/api/hlshop/admin/order", adminOrderRouter);
 app.use("/api/hlshop/admin/users", adminUserRouter);
 
-const { name_database_01 } = require("./configs/dbs.info");
-const { redis_info } = require("./configs/dbs.info");
-const config = name_database_01.config;
 app.get("/", function (request, response) {
   response.send({
     message: "Welcome to HLShop API",
-    config: config,
-    redis: redis_info,
   });
 });
 
