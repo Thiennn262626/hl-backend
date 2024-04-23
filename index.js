@@ -75,7 +75,7 @@ const connection = pool
   })
   .catch((err) => {
     console.error("Lỗi kết nối: " + err.stack);
-    check = "false" + err.stack;
+    check = "falseeeeeeee " + err.stack;
   });
 app.get("/", function (request, response) {
   response.send({
