@@ -65,6 +65,7 @@ const { name_database_01 } = require("./configs/dbs.info");
 const { redis_info } = require("./configs/dbs.info");
 const config = name_database_01.config;
 const sql = require("mssql");
+const e = require("express");
 const pool = new sql.ConnectionPool(config);
 var check = "false";
 const connection = pool
@@ -75,7 +76,7 @@ const connection = pool
   })
   .catch((err) => {
     console.error("Lỗi kết nối: " + err.stack);
-    check = "falseeeeeeee " + err.stack;
+    check = "falseeeeeeee " + err;
   });
 app.get("/", function (request, response) {
   response.send({
