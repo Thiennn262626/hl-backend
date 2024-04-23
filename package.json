@@ -2,15 +2,13 @@
   "name": "hlshop",
   "version": "1.0.0",
   "description": "",
-  "main": "Server.js",
-  "workspaces": [
-    "hl-backend"
-  ],
-  "scripts": {
-    "test": "echo 'No tests to run' && exit 0",
-    "redis": "redis-server",
-    "start:server": "node Server.js",
-    "start:dev": "nodemon Server.js"
+  "main": "index.js",
+  "engines": {
+    "node": "18.x"
+  },
+   "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
