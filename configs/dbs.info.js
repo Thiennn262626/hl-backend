@@ -6,11 +6,10 @@ module.exports = {
     config: {
       user: process.env.AZURE_SQL_SERVER_USER_NAME,
       password: process.env.AZURE_SQL_SERVER_PASSWORD,
-      database: process.env.AZURE_SQL_SERVER_DATABASE_NAME,
       server: process.env.AZURE_SQL_SERVER_HOST_NAME,
+      database: process.env.AZURE_SQL_SERVER_DATABASE_NAME,
       options: {
         encrypt: true,
-        trustServerCertificate: false,
         enableArithAbort: true,
       },
     },
