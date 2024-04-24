@@ -62,21 +62,37 @@ app.use("/api/hlshop/admin/order", adminOrderRouter);
 app.use("/api/hlshop/admin/users", adminUserRouter);
 
 const { name_database_01 } = require("./configs/dbs.info");
-const { redis_info } = require("./configs/dbs.info");
-const config = name_database_01.config;
+
 const sql = require("mssql");
-const e = require("express");
+const { redis_info } = require("./configs/dbs.info");
+// const config = name_database_01.config;
+AZURE_SQL_SERVER_HOST_NAME = "hl-shop.database.windows.net";
+AZURE_SQL_SERVER_DATABASE_NAME = "hl-shop-database";
+AZURE_SQL_SERVER_PORT = 1433;
+AZURE_SQL_SERVER_USER_NAME = "hl-shop-admin";
+AZURE_SQL_SERVER_PASSWORD = "12345678QT#";
+const config = {
+  user: "hl-shop-admin",
+  password: "12345678QT#",
+  server: "hl-shop.database.windows.net",
+  database: "hl-shop-database",
+  options: {
+    encrypt: true,
+    enableArithAbort: true,
+  },
+};
 const pool = new sql.ConnectionPool(config);
 var check = "false";
+
 const connection = pool
   .connect()
   .then(() => {
-    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...");
-    check = "true";
+    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...0000");
+    check = "true000";
   })
   .catch((err) => {
     console.error("Lỗi kết nối: " + err.stack);
-    check = "falseeeeeeee " + err;
+    check = "falseeeeeeee000 " + err;
   });
 app.get("/", function (request, response) {
   response.send({
