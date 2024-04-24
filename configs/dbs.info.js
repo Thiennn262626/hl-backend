@@ -1,10 +1,8 @@
 "use strict";
 
 require("dotenv").config();
-
 module.exports = {
   name_database_01: {
-    alias: process.env.AZURE_SQL_SERVER_DATABASE_NAME,
     config: {
       user: process.env.AZURE_SQL_SERVER_USER_NAME,
       password: process.env.AZURE_SQL_SERVER_PASSWORD,
@@ -13,11 +11,7 @@ module.exports = {
       options: {
         encrypt: true,
         trustServerCertificate: false,
-      },
-      pool: {
-        max: 10,
-        min: 0,
-        idleTimeoutMillis: 30000,
+        enableArithAbort: true,
       },
     },
   },
