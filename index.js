@@ -66,16 +66,11 @@ const { name_database_01 } = require("./configs/dbs.info");
 const sql = require("mssql");
 const { redis_info } = require("./configs/dbs.info");
 // const config = name_database_01.config;
-AZURE_SQL_SERVER_HOST_NAME = "hl-shop.database.windows.net";
-AZURE_SQL_SERVER_DATABASE_NAME = "hl-shop-database";
-AZURE_SQL_SERVER_PORT = 1433;
-AZURE_SQL_SERVER_USER_NAME = "hl-shop-admin";
-AZURE_SQL_SERVER_PASSWORD = "12345678QT#";
 const config = {
-  user: "hl-shop-admin",
-  password: "12345678QT#",
-  server: "hl-shop.database.windows.net",
-  database: "hl-shop-database",
+  user: process.env.AZURE_SQL_SERVER_USER_NAME,
+  password: process.env.AZURE_SQL_SERVER_PASSWORD,
+  server: process.env.AZURE_SQL_SERVER_HOST_NAME,
+  database: process.env.AZURE_SQL_SERVER_DATABASE_NAME,
   options: {
     encrypt: true,
     enableArithAbort: true,
@@ -98,7 +93,7 @@ app.get("/", function (request, response) {
   response.send({
     message: "Welcome to HLShop API",
     check: check,
-    name_database_01: name_database_01,
+    config: config,
     redis_info: redis_info,
   });
 });
