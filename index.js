@@ -75,6 +75,14 @@ const config = {
     enableArithAbort: true,
   },
 };
+const config2 = {
+  user: "hl-shop-admin",
+  password: "12345678QT#",
+  server: "hl-shop.database.windows.net",
+  database: "hl-shop-database",
+  options: { encrypt: true, enableArithAbort: true },
+};
+
 const pool = new sql.ConnectionPool(config);
 var check = "false";
 
@@ -88,10 +96,25 @@ const connection = pool
     console.error("Lỗi kết nối: " + err.stack);
     check = "falseeeeeeee000 " + err;
   });
+
+const pool2 = new sql.ConnectionPool(config2);
+var check2 = "false";
+
+const connection2 = pool2
+  .connect()
+  .then(() => {
+    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...1111");
+    check2 = "true1111";
+  })
+  .catch((err) => {
+    console.error("Lỗi kết nối: " + err.stack);
+    check2 = "falseeeeeeee1111 " + err;
+  });
 app.get("/", function (request, response) {
   response.send({
     message: "Welcome to HLShop API",
     check: check,
+    check2: check2,
     config: config,
     redis_info: redis_info,
   });
