@@ -1,6 +1,6 @@
 const express = require("express");
 var cors = require("cors");
-require("dotenv").config();
+// require("dotenv").config();
 const path = require("path");
 const app = express();
 app.use(cors());
@@ -61,67 +61,12 @@ app.use("/api/hlshop/admin/product", adminProductRouter);
 app.use("/api/hlshop/admin/order", adminOrderRouter);
 app.use("/api/hlshop/admin/users", adminUserRouter);
 
-const { name_database_01 } = require("./configs/dbs.info");
-
-const sql = require("mssql");
-const { redis_info } = require("./configs/dbs.info");
-const config = {
-  user: process.env.AZURE_SQL_SERVER_USER_NAME,
-  password: process.env.AZURE_SQL_SERVER_PASSWORD,
-  server: process.env.AZURE_SQL_SERVER_HOST_NAME,
-  database: process.env.AZURE_SQL_SERVER_DATABASE_NAME,
-  options: {
-    encrypt: true,
-    enableArithAbort: true,
-  },
-};
-const config2 = {
-  user: "hl-shop-admin",
-  password: "12345678QT#",
-  server: "hl-shop.database.windows.net",
-  database: "hl-shop-database",
-  options: { encrypt: true, enableArithAbort: true },
-};
-
-const pool = new sql.ConnectionPool(config);
-var check = "false";
-
-const connection = pool
-  .connect()
-  .then(() => {
-    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...0000");
-    check = "true000";
-  })
-  .catch((err) => {
-    console.error("Lỗi kết nối: " + err.stack);
-    check = "falseeeeeeee000 " + err;
-  });
-
-const pool2 = new sql.ConnectionPool(config2);
-var check2 = "false";
-
-const connection2 = pool2
-  .connect()
-  .then(() => {
-    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...1111");
-    check2 = "true1111";
-  })
-  .catch((err) => {
-    console.error("Lỗi kết nối: " + err.stack);
-    check2 = "falseeeeeeee1111 " + err;
-  });
 app.get("/", function (request, response) {
   response.send({
-    message: "Welcome to HLShop API",
-    check: check,
-    check2: check2,
-    config: config,
-    redis_info: redis_info,
+    message: "Welcome to HLShop API1",
   });
 });
 
-// const router = require("express").Router();
-// app.use("/", router);
 app.listen(port, () =>
   console.log(`Server is running on port http://localhost:${port}`)
 );
