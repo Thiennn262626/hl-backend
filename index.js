@@ -82,6 +82,8 @@ app.get("/", function (request, response) {
   response.send({
     message: "Welcome to HLShop API",
     check: check,
+    name_database_01: name_database_01,
+    redis_info: redis_info,
   });
 });
 

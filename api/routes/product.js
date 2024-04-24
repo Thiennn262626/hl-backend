@@ -473,7 +473,7 @@ router.get(
         .json({ result: paginatedResult, total: resultArray.length });
     } catch (error) {
       console.error(error);
-      response.status(500).json({ errorCode: "Internal Server Error" });
+      response.status(500).json({ errorCode: error });
     }
   }
 );
@@ -808,7 +808,7 @@ router.get("/get-list-good-price-today", async (request, response) => {
       .json({ result: paginatedResult, total: filteredResult.length });
   } catch (error) {
     console.error(error);
-    response.status(500).json({ errorCode: "Internal Server Error" });
+    response.status(500).json({ errorCode: error });
   }
 });
 
@@ -912,7 +912,7 @@ router.get("/get-list-same-category", async (request, response) => {
       .json({ result: paginatedResult, total: resultArray.length });
   } catch (error) {
     console.error(error);
-    response.status(500).json({ errorCode: "Internal Server Error" });
+    response.status(500).json({ errorCode: error });
   }
 });
 
@@ -924,7 +924,7 @@ router.get("/get-product-attribute", async (request, response) => {
   } catch (error) {
     console.log(error);
     response.status(500).json({
-      error: "Internal Server Error",
+      error: error,
     });
   }
 });
@@ -992,7 +992,7 @@ router.get("/get-product-sku-by-product-id", async (request, response) => {
   } catch (error) {
     console.log(error);
     response.status(500).json({
-      error: "Internal Server Error",
+      error: error,
     });
   }
 });
