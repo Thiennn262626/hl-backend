@@ -65,7 +65,6 @@ const { name_database_01 } = require("./configs/dbs.info");
 
 const sql = require("mssql");
 const { redis_info } = require("./configs/dbs.info");
-// const config = name_database_01.config;
 const config = {
   user: process.env.AZURE_SQL_SERVER_USER_NAME,
   password: process.env.AZURE_SQL_SERVER_PASSWORD,
