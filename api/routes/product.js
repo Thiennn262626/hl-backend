@@ -204,7 +204,7 @@ async function getListProduct() {
               JOIN Media as m ON p.id = m.id_product
               WHERE ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
             `;
-    const result = await database.request().query(queryProduct);
+    const result = await new database.Request().query(queryProduct);
 
     const resultMap = {};
     result.recordset.forEach((item) => {
