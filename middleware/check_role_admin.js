@@ -3,8 +3,7 @@ const database = require("../config");
 async function checkRoleAdmin(request, response, next) {
   try {
     const queryAccount = "SELECT * FROM Account WHERE id = @id";
-    const accountResult = await database
-      .request()
+    const accountResult = await new database.Request()
       .input("id", request.userData.uuid)
       .query(queryAccount);
 

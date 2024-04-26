@@ -10,17 +10,6 @@ const port = 3000;
 const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
 
-const pool = require("./config");
-
-pool
-  .connect()
-  .then(() => {
-    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...");
-  })
-  .catch((err) => {
-    console.error("Lỗi kết nối: " + err.stack);
-  });
-
 //import file
 const accountRouter = require("./api/routes/account");
 const categoryRouter = require("./api/routes/category");

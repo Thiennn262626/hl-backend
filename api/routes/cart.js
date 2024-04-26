@@ -18,8 +18,7 @@ router.post("/add-cart", checkAuth, checkRole, async (request, response) => {
     }
 
     const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await database
-      .request()
+    const userResult = await new database.Request()
       .input("idAccount", request.userData.uuid)
       .query(queryUser);
 
@@ -35,8 +34,7 @@ router.post("/add-cart", checkAuth, checkRole, async (request, response) => {
         VALUES (source.id_user, source.idProductSku, source.quantity, source.createdDate);
     `;
 
-    await database
-      .request()
+    await new database.Request()
       .input("idUser", userResult.recordset[0].id)
       .input("idProductSku", idProductSku)
       .input("quantity", quantity)
@@ -89,8 +87,7 @@ router.post(
       INNER JOIN Cart AS c ON u.id = c.id_user
       WHERE u.id_account = @idAccount AND c.id = @idCart;
     `;
-      const accessCheckResult = await database
-        .request()
+      const accessCheckResult = await new database.Request()
         .input("idAccount", request.userData.uuid)
         .input("idCart", idCart)
         .query(queryAccessCheck);
@@ -106,7 +103,7 @@ router.post(
       if (quantity <= 0) {
         // Nếu quantity <= 0 thì xóa sản phẩm khỏi giỏ hàng
         const deleteQuery = "DELETE FROM Cart WHERE id = @idCart";
-        await database.request().input("idCart", idCart).query(deleteQuery);
+        await new database.Request().input("idCart", idCart).query(deleteQuery);
 
         response.status(200).json({
           status: 200,
@@ -115,8 +112,7 @@ router.post(
       } else {
         const updateQuery =
           "UPDATE Cart SET quantity = @quantity, createdDate = @createdDate WHERE id = @idCart";
-        await database
-          .request()
+        await new database.Request()
           .input("quantity", quantity)
           .input("idCart", idCart)
           .input("createdDate", createdDate)
@@ -198,8 +194,7 @@ async function getCartList(idAccount) {
     ORDER BY c.createdDate DESC;
   `;
 
-  const result = await database
-    .request()
+  const result = await new database.Request()
     .input("idAccount", idAccount)
     .query(query);
 

@@ -236,7 +236,7 @@ async function updateMedia0(transaction, id_product, MediaID, isDefault = 0) {
       WHERE id = @MediaID
     `;
     const result = await transaction
-      .request()
+      .Request()
       .input("id_product", id_product)
       .input("MediaID", MediaID)
       .input("isDefault", isDefault)
@@ -264,7 +264,7 @@ async function updateMedia(
       WHERE id = @MediaID
     `;
     const result = await transaction
-      .request()
+      .Request()
       .input("id_product", id_product)
       .input("productAttributeValueID", productAttributeValueID)
       .input("title", title)
@@ -363,7 +363,7 @@ async function insertProductSKU(
         @quantity, @sold, @price, @priceBefore, @enable, @id_product, @id_product_attribute1, @id_product_attribute2
       `;
     const result = await transaction
-      .request()
+      .Request()
       .input("quantity", Number(productSKUs.totalStock))
       .input("sold", productSKUs.sold ? productSKUs.sold : 0)
       .input("price", Number(productSKUs.price))
@@ -450,7 +450,7 @@ async function insertProductAttributeValue(
         @valueName, @id_product_attribute
       `;
     const result = await transaction
-      .request()
+      .Request()
       .input("valueName", attributeValue.locAttributeValueName)
       .input("id_product_attribute", id_product_attribute)
       .query(query);
@@ -474,7 +474,7 @@ async function insertProductAttribute(
         @name, @description, @type, @id_product
       `;
     const result = await transaction
-      .request()
+      .Request()
       .input("name", attribute.locAttributeName)
       .input("description", attribute.locAttributeName)
       .input("type", index)
@@ -517,7 +517,7 @@ async function insertProduct(
       FROM [User], Category
       WHERE [User].id_account = @idAccount AND Category.id = @idCategory `;
     const result = await transaction
-      .request()
+      .Request()
       .input("name", name)
       .input("slogan", slogan)
       .input("description", description)
@@ -577,8 +577,7 @@ router.post(
             OUTPUT inserted.id AS id_media
             SELECT @url AS linkString, @title AS title, @description AS description, @createdDate AS createdDate
           `;
-          const result = await database
-            .request()
+          const result = await new database.Request()
             .input("url", publicUrl)
             .input("title", uniqueFileName)
             .input("description", uniqueFileName)
@@ -631,7 +630,7 @@ async function getListProduct() {
               JOIN Media as m ON p.id = m.id_product
               ORDER BY p.sellQuantity DESC
             `;
-    const result = await database.request().query(queryProduct);
+    const result = await new database.Request().query(queryProduct);
 
     const resultMap = {};
     result.recordset.forEach((item) => {
@@ -827,8 +826,7 @@ async function processSkus(productID) {
       LEFT JOIN Media ON Product.id = Media.id_product
       WHERE idProduct = @productID
       `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("productID", productID)
       .query(query);
     const resultMap = {};
@@ -935,8 +933,7 @@ router.post("/enable-product", checkAuth, checkRoleAdmin, async (req, res) => {
       SET enable = @enable
       WHERE id = @productID
     `;
-      const result = await database
-        .request()
+      const result = await new database.Request()
         .input("productID", productID)
         .input("enable", enable)
         .query(query);
@@ -977,8 +974,7 @@ router.post("/enable-sku", checkAuth, checkRoleAdmin, async (req, res) => {
       SET enable = @enable
       WHERE id = @productSKUID
     `;
-      const result = await database
-        .request()
+      const result = await new database.Request()
         .input("productSKUID", productSKUID)
         .input("enable", enable)
         .query(query);
@@ -1013,8 +1009,7 @@ router.post("/restock-sku", checkAuth, checkRoleAdmin, async (req, res) => {
       SET quantity = @totalStock
       WHERE id = @productSKUID
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("productSKUID", productSKUID)
       .input("totalStock", totalStock)
       .query(query);

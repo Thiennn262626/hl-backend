@@ -24,7 +24,7 @@ router.get("/get-list", async (request, response) => {
       FROM Category
       ORDER BY name
       `;
-    const result = await database.request().query(query);
+    const result = await new database.Request().query(query);
     const resultMap = {};
     result.recordset.forEach((item) => {
       const { productCategoryID, ...rest } = item;
@@ -86,8 +86,7 @@ router.post(
             image = image + publicUrl;
             const queryCategory =
               "INSERT INTO Category(name, image) VALUES(@name, @image)";
-            const categoryResult = await database
-              .request()
+            const categoryResult = await new database.Request()
               .input("name", name)
               .input("image", image)
               .query(queryCategory);
@@ -128,8 +127,7 @@ router.put(
       if (!request.file) {
         const queryCategory =
           "UPDATE Category SET name = @name WHERE id = @idCategory";
-        const categoryResult = await database
-          .request()
+        const categoryResult = await new database.Request()
           .input("name", name)
           .input("idCategory", idCategory)
           .query(queryCategory);
@@ -160,8 +158,7 @@ router.put(
             image = image + publicUrl;
             const queryCategory =
               "UPDATE Category SET name = @name, image = @image WHERE id = @idCategory";
-            const categoryResult = await database
-              .request()
+            const categoryResult = await new database.Request()
               .input("name", name)
               .input("image", image)
               .input("idCategory", idCategory)
@@ -208,16 +205,15 @@ router.get("/get-list", async (request, response) => {
 
     const queryCategory =
       "SELECT * FROM Category ORDER BY name OFFSET @page ROWS FETCH NEXT @pageSize ROWS ONLY";
-    const categoryResult = await database
-      .request()
+    const categoryResult = await new database.Request()
       .input("page", parseInt(offset))
       .input("pageSize", parseInt(limit))
       .query(queryCategory);
 
     const queryTotalCategory = "SELECT COUNT(*) AS TotalRecords FROM category;";
-    const ResultTotalCategory = await database
-      .request()
-      .query(queryTotalCategory);
+    const ResultTotalCategory = await new database.Request().query(
+      queryTotalCategory
+    );
 
     var results = [];
     for (var i = 0; i < categoryResult.recordset.length; i++) {

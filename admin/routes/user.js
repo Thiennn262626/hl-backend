@@ -16,28 +16,24 @@ router.get(
   async (request, response) => {
     try {
       const queryUser = "SELECT * FROM [User] WHERE id_account = @idAccount";
-      const userResult = await database
-        .request()
+      const userResult = await new database.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryUser);
 
       const queryAccount = "SELECT * FROM Account WHERE id = @idAccount";
-      const resultAccount = await database
-        .request()
+      const resultAccount = await new database.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryAccount);
 
       const queryEmail =
         "SELECT id AS emailID, emailAddress, emailLabel, isDefault, isVerify FROM Email WHERE idUser = @idUser";
-      const resultEmail = await database
-        .request()
+      const resultEmail = await new database.Request()
         .input("idUser", userResult.recordset[0].id)
         .query(queryEmail);
 
       const queryPhone =
         "SELECT id AS phoneID, phoneNo, extendNumber, phoneLabel, phoneArea, countryArea, isDefault, isVerify FROM Phone WHERE idUser = @idUser";
-      const resultPhone = await database
-        .request()
+      const resultPhone = await new database.Request()
         .input("idUser", userResult.recordset[0].id)
         .query(queryPhone);
 
@@ -198,8 +194,8 @@ router.get(
 //       OUTPUT inserted.id AS id_media
 //       SELECT @url AS linkString ,@createdDate AS createdDate
 //     `;
-//     const result = await database
-//       .request()
+//     const result = await new database
+//       .Request()
 //       .input("url", data)
 //       .input("createdDate", new Date())
 //       .query(query);

@@ -15,7 +15,7 @@ router.get("/get-list", async (request, response) => {
       FROM Category
       ORDER BY name
       `;
-    const result = await database.request().query(query);
+    const result = await new database.Request().query(query);
     const resultMap = {};
     result.recordset.forEach((item) => {
       const { productCategoryID, ...rest } = item;
@@ -66,8 +66,7 @@ async function getListProductByCategory(idCategory) {
       ORDER BY p.sellQuantity DESC
     `;
 
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idCategory", idCategory)
       .query(queryProduct);
 

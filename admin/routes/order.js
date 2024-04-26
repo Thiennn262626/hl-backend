@@ -53,8 +53,7 @@ async function getListOrderByStatus(orderStatus, idAccount) {
           WHERE o.orderStatus = @orderStatus
           ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC;
           `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idAccount", idAccount)
       .input("orderStatus", orderStatus)
       .query(query);
@@ -285,7 +284,7 @@ async function updateOrderPayment(orderID, transaction) {
         WHERE orderId = @orderID;
     `;
     await transaction
-      .request()
+      .Request()
       .input("orderID", orderID)
       .input("finishPay", false)
       .query(query);
@@ -306,7 +305,7 @@ async function createOrderTracking(
         VALUES (@orderId, @orderStatus, @createdDate);
         `;
     await transaction
-      .request()
+      .Request()
       .input("orderId", orderID)
       .input("orderStatus", orderStatus)
       .input("createdDate", DateNow)
@@ -323,7 +322,7 @@ async function updateOrderStatus(orderID, orderStatus, transaction) {
         WHERE id = @orderID;
         `;
     await transaction
-      .request()
+      .Request()
       .input("orderID", orderID)
       .input("orderStatus", orderStatus)
       .query(query);
@@ -356,8 +355,7 @@ async function checkOrderExistAndGetCurrentStatusAndFinishPayAdmin(orderID) {
     WHERE o.id = @orderID
     ORDER BY ot.actionDate DESC;
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("orderID", orderID)
       .query(query);
     if (result.recordset.length === 0) {
@@ -406,8 +404,7 @@ async function checkOrderExist(orderID) {
     FROM [Order] AS o
     WHERE  o.id = @orderID
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("orderID", orderID)
       .query(query);
     if (result.recordset.length === 0) {
@@ -445,8 +442,7 @@ async function getOrderDetailByID(orderID) {
                               )
     ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("orderID", orderID)
       .query(query);
 
@@ -526,8 +522,7 @@ async function getListOrderStatusTracking(orderID) {
     WHERE ot.orderId = @orderID
     ORDER BY ot.actionDate DESC;
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("orderID", orderID)
       .query(query);
     return result.recordset.map((item) => ({
@@ -578,7 +573,7 @@ async function countOrders() {
     SUM(CASE WHEN o.orderStatus = 8 THEN 1 ELSE 0 END) AS countCancel
     FROM [Order] o;
     `;
-    const result = await database.request().query(query);
+    const result = await new database.Request().query(query);
     return result.recordset[0];
   } catch (error) {
     throw "Error in countOrders";

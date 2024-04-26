@@ -45,8 +45,7 @@ async function getProductDetail(idProduct) {
       WHERE p.id = @idProduct AND ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
     `;
 
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idProduct", idProduct)
       .query(queryProduct);
 
@@ -64,8 +63,7 @@ async function getProductDetail(idProduct) {
     JOIN [User] AS u ON r.id_user = u.id
     WHERE p.id =  @product_id
     `;
-    const result_summary = await database
-      .request()
+    const result_summary = await new database.Request()
       .input("product_id", idProduct)
       .query(query_summary);
     const resultMap = {};
@@ -357,8 +355,7 @@ router.get(
   async (request, response) => {
     try {
       const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await database
-        .request()
+      const userResult = await new database.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryUser);
       const userid = userResult.recordset[0].id;
@@ -591,14 +588,15 @@ router.get("/get-list-hot", async (request, response) => {
     var search = request.query.search ? request.query.search.toLowerCase() : "";
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
-    let resultArray = await RedisService.get("listProduct");
-    if (!resultArray) {
-      resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
-      RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
-    }
+    const resultArray = await getListProduct();
+    // let resultArray = await RedisService.get("listProduct");
+    // if (!resultArray) {
+    //   resultArray = await getListProduct();
+    //   RedisService.set("listProduct", JSON.stringify(resultArray));
+    //   RedisService.expire("listProduct", 3000);
+    // } else {
+    //   resultArray = JSON.parse(resultArray);
+    // }
 
     resultArray.sort((a, b) => {
       const weightSellQuantity = 1; // Trọng số cho sellQuantity
@@ -836,8 +834,8 @@ router.get("/get-list-good-price-today", async (request, response) => {
 //       ORDER BY p.sellQuantity DESC
 //     `;
 
-//     const result = await database
-//       .request()
+//     const result = await new database
+//       .Request()
 //       .input("idCategory", idCategory)
 //       .input("idProduct", idProduct)
 //       .query(queryProduct);
@@ -944,8 +942,7 @@ async function getProductAttributes(productID) {
     ORDER BY pa.type, pav.id;
   `;
 
-  const result = await database
-    .request()
+  const result = await new database.Request()
     .input("productID", productID)
     .query(query);
 
@@ -1025,8 +1022,7 @@ async function processSkus(productID) {
       LEFT JOIN Media ON Product.id = Media.id_product
       WHERE idProduct = @productID AND ps.quantity > 0 AND ps.enable = 1
       `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("productID", productID)
       .query(query);
     const resultMap = {};

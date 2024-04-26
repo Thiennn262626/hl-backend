@@ -35,8 +35,7 @@ router.post("/add", checkAuth, checkRole, async (request, response) => {
     WHERE [User].id_account = @idAccount
     `;
 
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idAccount", request.userData.uuid)
       .query(query);
 
@@ -65,8 +64,7 @@ router.post("/add", checkAuth, checkRole, async (request, response) => {
        FROM [User]
        WHERE [User].id_account = @idAccount
        `;
-    await database
-      .request()
+    await new database.Request()
       .input("receiverPhone", receiverPhone)
       .input("receiverContactName", receiverContactName)
       .input("receiverEmailID", receiverEmailID)
@@ -104,8 +102,7 @@ async function getEmailByID(receiverEmailID, idAccount) {
     LEFT JOIN Email ON [User].id = Email.idUser
     WHERE [User].id_account = @idAccount AND Email.id = @receiverEmailID AND Email.isVerify = 1
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idAccount", idAccount)
       .input("receiverEmailID", receiverEmailID)
       .query(query);
@@ -142,8 +139,7 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
     );
 
     const query = "SELECT * FROM AddressReceive WHERE id = @addressID";
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("addressID", receiverAddressID)
       .query(query);
 
@@ -154,15 +150,13 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
       });
     } else {
       const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await database
-        .request()
+      const userResult = await new database.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryUser);
       if (userResult.recordset[0].id == result.recordset[0].id_user) {
         const queryAddress =
           "UPDATE AddressReceive SET receiverPhone = @receiverPhone, receiverEmail = @receiverEmail, receiverContactName = @receiverContactName, cityName = @cityName, districtName = @districtName, addressDetail = @addressDetail, addressLabel = @addressLabel, cityID = @cityID, districtID = @districtID, createdDate = @createdDate, wardName = @wardName, wardID = @wardID, receiverEmailID = @receiverEmailID WHERE id = @addressID";
-        const addressResult = await database
-          .request()
+        const addressResult = await new database.Request()
           .input("receiverPhone", receiverPhone)
           .input("receiverEmailID", receiverEmailID)
           .input("receiverEmail", receiverEmail)
@@ -201,8 +195,7 @@ router.post("/delete", checkAuth, checkRole, async (request, response) => {
   try {
     const receiverAddressID = request.body.receiverAddressID;
     const query = "SELECT * FROM AddressReceive WHERE id = @addressID";
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("addressID", receiverAddressID)
       .query(query);
 
@@ -213,8 +206,7 @@ router.post("/delete", checkAuth, checkRole, async (request, response) => {
       });
     } else {
       const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await database
-        .request()
+      const userResult = await new database.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryUser);
 
@@ -222,16 +214,14 @@ router.post("/delete", checkAuth, checkRole, async (request, response) => {
         if (result.recordset[0].isDefault === 1) {
           const queryAddressList =
             "SELECT id FROM AddressReceive WHERE id_user = @userID ORDER BY isDefault DESC, createdDate DESC";
-          const resultAddressList = await database
-            .request()
+          const resultAddressList = await new database.Request()
             .input("userID", userResult.recordset[0].id)
             .query(queryAddressList);
 
           if (resultAddressList.recordset.length > 1) {
             const queryAddress =
               "UPDATE AddressReceive SET isDefault = @isDefault, createdDate = @createdDate WHERE id = @addressID";
-            const addressResult = await database
-              .request()
+            const addressResult = await new database.Request()
               .input("isDefault", 1)
               .input("createdDate", new Date())
               .input("addressID", resultAddressList.recordset[1].id)
@@ -239,8 +229,7 @@ router.post("/delete", checkAuth, checkRole, async (request, response) => {
           }
         }
         const queryAddress = "DELETE FROM AddressReceive WHERE id = @addressID";
-        const addressResult = await database
-          .request()
+        const addressResult = await new database.Request()
           .input("addressID", receiverAddressID)
           .query(queryAddress);
 
@@ -267,19 +256,16 @@ router.post("/add-default", checkAuth, checkRole, async (request, response) => {
     const receiverAddressID = request.body.receiverAddressID;
 
     const Addressquery = "SELECT * FROM AddressReceive WHERE id = @addressID";
-    const AddressResult = await database
-      .request()
+    const AddressResult = await new database.Request()
       .input("addressID", receiverAddressID)
       .query(Addressquery);
     const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await database
-      .request()
+    const userResult = await new database.Request()
       .input("idAccount", request.userData.uuid)
       .query(queryUser);
     const queryAddressList =
       "SELECT id FROM AddressReceive WHERE id_user = @userID AND isDefault = 1 ORDER BY isDefault DESC, createdDate DESC";
-    const resultAddressList = await database
-      .request()
+    const resultAddressList = await new database.Request()
       .input("userID", userResult.recordset[0].id)
       .query(queryAddressList);
 
@@ -301,15 +287,13 @@ router.post("/add-default", checkAuth, checkRole, async (request, response) => {
         for (var i = 0; i < resultAddressList.recordset.length; i++) {
           const queryUnDefault =
             "UPDATE AddressReceive SET isDefault = 0 WHERE id = @addressID";
-          const resultUnDefault = await database
-            .request()
+          const resultUnDefault = await new database.Request()
             .input("addressID", resultAddressList.recordset[i].id)
             .query(queryUnDefault);
         }
         const querySetDefault =
           "UPDATE AddressReceive SET isDefault = 1 WHERE id = @addressID";
-        const resultSetDefault = await database
-          .request()
+        const resultSetDefault = await new database.Request()
           .input("addressID", receiverAddressID)
           .query(querySetDefault);
         response.status(200).json({
@@ -340,15 +324,13 @@ router.get("/get-list", checkAuth, checkRole, async (request, response) => {
 
     offset = (offset - 1) * limit;
     const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await database
-      .request()
+    const userResult = await new database.Request()
       .input("idAccount", request.userData.uuid)
       .query(queryUser);
 
     const query =
       "SELECT id AS receiverAddressID, receiverContactName, receiverPhone, receiverEmail, receiverEmailID, addressLabel, id_user AS userID, isDefault, cityName, districtName, cityID, districtID, addressDetail, wardName, wardID FROM AddressReceive WHERE id_user = @userID ORDER BY isDefault DESC, createdDate DESC OFFSET @page ROWS FETCH NEXT @pageSize ROWS ONLY";
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("page", parseInt(offset))
       .input("pageSize", parseInt(limit))
       .input("userID", userResult.recordset[0].id)

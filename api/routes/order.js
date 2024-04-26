@@ -188,8 +188,7 @@ async function getSizeItem(cartID) {
     JOIN Product AS p ON ps.idProduct = p.id
     WHERE c.id = @cartID;
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("cartID", cartID)
       .query(query);
     if (result.recordset.length === 0) {
@@ -232,8 +231,7 @@ async function getAddressReceive(receiverAddressID, idAccount) {
     JOIN AddressReceive AS ar ON u.id = ar.id_user
     WHERE ar.id = @receiverAddressID AND u.id_account = @idAccount;
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("receiverAddressID", receiverAddressID)
       .input("idAccount", idAccount)
       .query(query);
@@ -260,7 +258,7 @@ async function createPaymentOrder(orderID, amount, created, transaction) {
         VALUES (@orderID, @amount, @created, @finish_pay);
         `;
     await transaction
-      .request()
+      .Request()
       .input("orderID", orderID)
       .input("amount", amount)
       .input("created", created)
@@ -278,7 +276,7 @@ async function deleteCartItem(cartID, userID, transaction) {
         WHERE id = @cartID AND id_user = @userID;
         `;
     await transaction
-      .request()
+      .Request()
       .input("cartID", cartID)
       .input("userID", userID)
       .query(query);
@@ -299,7 +297,7 @@ async function createOrderTracking(
         VALUES (@orderId, @orderStatus, @createdDate);
         `;
     await transaction
-      .request()
+      .Request()
       .input("orderId", orderID)
       .input("orderStatus", orderStatus)
       .input("createdDate", DateNow)
@@ -325,7 +323,7 @@ async function insertOderCode(
             WHERE id = @orderID;
             `;
     await transaction
-      .request()
+      .Request()
       .input("orderID", orderID)
       .input("orderCode", orderCode)
       .input("totalPriceOrder", totalOrder)
@@ -355,7 +353,7 @@ async function mapCarttoOrderItem(cartID, orderID, userID, transaction) {
         `;
 
     const result = await transaction
-      .request()
+      .Request()
       .input("orderId", orderID)
       .input("cartID", cartID)
       .input("userID", userID)
@@ -373,7 +371,7 @@ async function mapCarttoOrderItem(cartID, orderID, userID, transaction) {
             WHERE ps.id = @productSkuID;
             `;
       const resultGetSku = await transaction
-        .request()
+        .Request()
         .input("productSkuID", result.recordset[0].productSku_id)
         .query(queryGetSku);
       const productSKU = {
@@ -407,7 +405,7 @@ async function mapCarttoOrderItem(cartID, orderID, userID, transaction) {
             WHERE id = @orderItemID;
             `;
       await transaction
-        .request()
+        .Request()
         .input("orderItemJsonToString", JSON.stringify(orderItem))
         .input("orderItemID", orderItem.orderItemID)
         .query(queryUpdateOrderItem);
@@ -443,7 +441,7 @@ async function createOrder(
         VALUES (@idUser, @paymentMethod, @createdDate, @orderStatus, @receiverAddress);
         `;
     const result = await transaction
-      .request()
+      .Request()
       .input("idUser", idUser)
       .input("paymentMethod", paymentMethod)
       .input("createdDate", DateNow)
@@ -512,8 +510,7 @@ async function getListOrderByStatus(orderStatus, idAccount) {
           u.id_account = @idAccount AND o.orderStatus = @orderStatus
           ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC;
           `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idAccount", idAccount)
       .input("orderStatus", orderStatus)
       .query(query);
@@ -589,8 +586,7 @@ async function checkOrderExist(orderID, idAccount) {
     JOIN [Order] AS o ON u.id = o.idUser
     WHERE u.id_account = @idAccount AND o.id = @orderID
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idAccount", idAccount)
       .input("orderID", orderID)
       .query(query);
@@ -629,8 +625,7 @@ async function getOrderDetailByID(orderID) {
                               )
     ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("orderID", orderID)
       .query(query);
 
@@ -710,8 +705,7 @@ async function getListOrderStatusTracking(orderID) {
     WHERE ot.orderId = @orderID
     ORDER BY ot.actionDate DESC;
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("orderID", orderID)
       .query(query);
     return result.recordset.map((item) => ({
@@ -764,8 +758,7 @@ async function countOrders(idAccount) {
     JOIN [Order] AS o ON u.id = o.idUser
     WHERE u.id_account = @idAccount;
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idAccount", idAccount)
       .query(query);
     return result.recordset[0];
@@ -831,8 +824,7 @@ async function updatePaymentOrderFinishPay(orderID, transId) {
         transId = @transId
         WHERE orderId = @orderID;
     `;
-    await database
-      .request()
+    await new database.Request()
       .input("orderID", orderID)
       .input("transId", transId)
       .input("finishPay", true)
@@ -857,8 +849,7 @@ async function getPaymentOrderbyOrderID(orderID, idAccount) {
     JOIN [Order] AS o ON po.orderId = o.id
     WHERE po.orderId = @orderID;
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("orderID", orderID)
       .query(query);
     if (result.recordset.length === 0) {
@@ -960,8 +951,7 @@ async function updatePaymentOrder(
         signature = @signature
         WHERE orderId = @orderID;
     `;
-    await database
-      .request()
+    await new database.Request()
       .input("orderID", orderID)
       .input("requestId", requestId)
       .input("payUrl", payUrl)
@@ -993,8 +983,7 @@ async function getOrderPayment(orderID, idAccount) {
     LEFT JOIN Payment_order AS po ON o.id = po.orderId
     WHERE u.id_account = @idAccount AND o.id = @orderID;
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idAccount", idAccount)
       .input("orderID", orderID)
       .query(query);
@@ -1201,7 +1190,7 @@ async function updateOrderPayment(orderID, transaction) {
         WHERE orderId = @orderID;
     `;
     await transaction
-      .request()
+      .Request()
       .input("orderID", orderID)
       .input("finishPay", false)
       .query(query);
@@ -1218,7 +1207,7 @@ async function updateOrderStatus(orderID, orderStatus, transaction) {
         WHERE id = @orderID;
         `;
     await transaction
-      .request()
+      .Request()
       .input("orderID", orderID)
       .input("orderStatus", orderStatus)
       .query(query);
@@ -1246,8 +1235,7 @@ async function checkOrderExistAndGetCurrentStatusAndFinishPay(
     LEFT JOIN Payment_order AS po ON o.id = po.orderId
     WHERE u.id_account = @idAccount AND o.id = @orderID
     `;
-    const result = await database
-      .request()
+    const result = await new database.Request()
       .input("idAccount", idAccount)
       .input("orderID", orderID)
       .query(query);
