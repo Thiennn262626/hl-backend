@@ -62,7 +62,6 @@ app.use("/api/hlshop/admin/users", adminUserRouter);
 app.get("/", function (request, response) {
   response.send({
     message: "Welcome to HLShop API1",
-    pool: pool,
   });
 });
 
