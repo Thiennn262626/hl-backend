@@ -5,7 +5,7 @@ const path = require("path");
 const app = express();
 app.use(cors());
 
-const port = 3001;
+const port = 3000;
 
 const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
