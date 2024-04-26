@@ -10,7 +10,15 @@ const port = 3000;
 const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
 
-// const initSql = require("./dbs/init.sqlserver");
+const pool = require("./config");
+pool
+  .connect()
+  .then(() => {
+    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...");
+  })
+  .catch((err) => {
+    console.error("Lỗi kết nối: " + err.stack);
+  });
 
 //import file
 const accountRouter = require("./api/routes/account");
@@ -64,6 +72,7 @@ app.use("/api/hlshop/admin/users", adminUserRouter);
 app.get("/", function (request, response) {
   response.send({
     message: "Welcome to HLShop API1",
+    pool: pool,
   });
 });
 
