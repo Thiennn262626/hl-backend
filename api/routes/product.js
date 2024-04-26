@@ -580,6 +580,49 @@ router.get("/get-list-new", async (request, response) => {
   }
 });
 
+router.get("/test", async (request, response) => {
+  try {
+    const query = `SELECT 
+    user_id,
+    job_id,
+    rating
+FROM
+(SELECT 
+    users.user_id,
+    job.job_id,
+    COALESCE(applied_count, 0) + COALESCE(views_count, 0) + COALESCE(likes_count, 0) AS rating
+FROM 
+    users
+CROSS JOIN job
+LEFT JOIN (
+    SELECT student_user_id, job_job_id, COUNT(*) AS applied_count
+    FROM job_apply
+    GROUP BY student_user_id, job_job_id
+) AS applied ON users.user_id = applied.student_user_id AND job.job_id = applied.job_job_id
+LEFT JOIN (
+    SELECT user_id, job_id, COALESCE(SUM(views), 0) AS views_count
+    FROM user_job_views
+    GROUP BY user_id, job_id
+) AS views ON users.user_id = views.user_id AND job.job_id = views.job_id
+LEFT JOIN (
+    SELECT user_user_id, job_job_id, COUNT(*) AS likes_count
+    FROM short_list
+    GROUP BY user_user_id, job_job_id
+) AS likes ON users.user_id = likes.user_user_id AND job.job_id = likes.job_job_id
+WHERE 
+    users.role_role_id = 2
+    AND users.is_verified = 1
+    AND job.is_active = 1) AS subquery
+WHERE 
+    rating != 0 AND rating != 1`;
+    const result = await new database.Request().query(query);
+    response.status(200).json(result.recordset);
+  } catch (error) {
+    console.error(error);
+    response.status(500).json({ errorCode: error });
+  }
+});
+
 router.get("/get-list-hot", async (request, response) => {
   try {
     var offset = parseInt(request.query.offset) || 0;
