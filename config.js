@@ -17,6 +17,7 @@ const config = {
   password: "12345678QT#",
   server: "hl-shop.database.windows.net",
   database: "hl-shop-database",
+  port: 1433,
   options: {
     encrypt: true,
   },
