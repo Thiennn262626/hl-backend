@@ -19,7 +19,6 @@ const config = {
   database: "hl-shop-database",
   options: {
     encrypt: true,
-    enableArithAbort: true,
   },
 };
 // const pool = sql.ConnectionPool(config);
