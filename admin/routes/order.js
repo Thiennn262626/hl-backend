@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
-require("dotenv").config();
-const database = require("../../config");
-const sql = require("mssql");
+const { sql } = require("../../config");
+
 const { refundOrderPayment } = require("../../utils/momo_payment");
 const mail_util = require("../../utils/mail");
 
@@ -53,7 +52,7 @@ async function getListOrderByStatus(orderStatus, idAccount) {
           WHERE o.orderStatus = @orderStatus
           ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC;
           `;
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("idAccount", idAccount)
       .input("orderStatus", orderStatus)
       .query(query);
@@ -122,7 +121,7 @@ router.post(
   checkAuth,
   checkRoleAdmin,
   async (request, response) => {
-    let transaction = new sql.Transaction(database);
+    const transaction = new sql.Transaction();
     try {
       console.log("request.query", request.query);
       const orderID = request.query.orderID;
@@ -355,7 +354,7 @@ async function checkOrderExistAndGetCurrentStatusAndFinishPayAdmin(orderID) {
     WHERE o.id = @orderID
     ORDER BY ot.actionDate DESC;
     `;
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("orderID", orderID)
       .query(query);
     if (result.recordset.length === 0) {
@@ -404,7 +403,7 @@ async function checkOrderExist(orderID) {
     FROM [Order] AS o
     WHERE  o.id = @orderID
     `;
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("orderID", orderID)
       .query(query);
     if (result.recordset.length === 0) {
@@ -442,7 +441,7 @@ async function getOrderDetailByID(orderID) {
                               )
     ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC
     `;
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("orderID", orderID)
       .query(query);
 
@@ -522,7 +521,7 @@ async function getListOrderStatusTracking(orderID) {
     WHERE ot.orderId = @orderID
     ORDER BY ot.actionDate DESC;
     `;
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("orderID", orderID)
       .query(query);
     return result.recordset.map((item) => ({
@@ -573,7 +572,7 @@ async function countOrders() {
     SUM(CASE WHEN o.orderStatus = 8 THEN 1 ELSE 0 END) AS countCancel
     FROM [Order] o;
     `;
-    const result = await new database.Request().query(query);
+    const result = await new sql.Request().query(query);
     return result.recordset[0];
   } catch (error) {
     throw "Error in countOrders";

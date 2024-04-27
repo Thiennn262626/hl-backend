@@ -1,5 +1,5 @@
 // "use trict";
-// const sql = require("mssql");
+//
 
 // const { name_database_01 } = require("../configs/dbs.info");
 

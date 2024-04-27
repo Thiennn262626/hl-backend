@@ -1,7 +1,7 @@
 const express = require("express");
 
 const router = express.Router();
-const database = require("../../config");
+const { sql } = require("../../config");
 
 router.get("/get-list", async (request, response) => {
   try {
@@ -15,7 +15,7 @@ router.get("/get-list", async (request, response) => {
       FROM Category
       ORDER BY name
       `;
-    const result = await new database.Request().query(query);
+    const result = await new sql.Request().query(query);
     const resultMap = {};
     result.recordset.forEach((item) => {
       const { productCategoryID, ...rest } = item;
@@ -66,7 +66,7 @@ async function getListProductByCategory(idCategory) {
       ORDER BY p.sellQuantity DESC
     `;
 
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("idCategory", idCategory)
       .query(queryProduct);
 

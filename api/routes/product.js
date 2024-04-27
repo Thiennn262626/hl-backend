@@ -3,7 +3,7 @@ const axios = require("axios");
 
 const router = express.Router();
 
-const database = require("../../config");
+const { sql } = require("../../config");
 const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
@@ -45,7 +45,7 @@ async function getProductDetail(idProduct) {
       WHERE p.id = @idProduct AND ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
     `;
 
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("idProduct", idProduct)
       .query(queryProduct);
 
@@ -63,7 +63,7 @@ async function getProductDetail(idProduct) {
     JOIN [User] AS u ON r.id_user = u.id
     WHERE p.id =  @product_id
     `;
-    const result_summary = await new database.Request()
+    const result_summary = await new sql.Request()
       .input("product_id", idProduct)
       .query(query_summary);
     const resultMap = {};
@@ -202,7 +202,7 @@ async function getListProduct() {
               JOIN Media as m ON p.id = m.id_product
               WHERE ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
             `;
-    const result = await new database.Request().query(queryProduct);
+    const result = await new sql.Request().query(queryProduct);
 
     const resultMap = {};
     result.recordset.forEach((item) => {
@@ -355,7 +355,7 @@ router.get(
   async (request, response) => {
     try {
       const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await new database.Request()
+      const userResult = await new sql.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryUser);
       const userid = userResult.recordset[0].id;
@@ -615,7 +615,7 @@ WHERE
     AND job.is_active = 1) AS subquery
 WHERE 
     rating != 0 AND rating != 1`;
-    const result = await new database.Request().query(query);
+    const result = await new sql.Request().query(query);
     response.status(200).json(result.recordset);
   } catch (error) {
     console.error(error);
@@ -877,7 +877,7 @@ router.get("/get-list-good-price-today", async (request, response) => {
 //       ORDER BY p.sellQuantity DESC
 //     `;
 
-//     const result = await new database
+//     const result = await new sql
 //       .Request()
 //       .input("idCategory", idCategory)
 //       .input("idProduct", idProduct)
@@ -985,7 +985,7 @@ async function getProductAttributes(productID) {
     ORDER BY pa.type, pav.id;
   `;
 
-  const result = await new database.Request()
+  const result = await new sql.Request()
     .input("productID", productID)
     .query(query);
 
@@ -1065,7 +1065,7 @@ async function processSkus(productID) {
       LEFT JOIN Media ON Product.id = Media.id_product
       WHERE idProduct = @productID AND ps.quantity > 0 AND ps.enable = 1
       `;
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("productID", productID)
       .query(query);
     const resultMap = {};

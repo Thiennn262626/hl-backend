@@ -2,9 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const mail_util = require("../../utils/mail");
-const database = require("../../config");
+const { sql } = require("../../config");
 const jwt = require("jsonwebtoken");
-const e = require("express");
 require("dotenv").config();
 
 router.post("/signup-email", async (request, response) => {
@@ -13,7 +12,7 @@ router.post("/signup-email", async (request, response) => {
     const password = request.body.password;
     const query =
       "SELECT id, isVerify FROM Account WHERE userLogin = @userLogin";
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("userLogin", email)
       .query(query);
 
@@ -43,7 +42,7 @@ router.post("/signup-email", async (request, response) => {
 
       const queryAccount =
         "INSERT INTO Account(userLogin, password, role, isVerify , createdDate) OUTPUT inserted.id VALUES (@email, @password, @role, @isVerify, @createdDate)";
-      const accountResult = await new database.Request()
+      const accountResult = await new sql.Request()
         .input("email", email)
         .input("password", password)
         .input("role", role)
@@ -58,7 +57,7 @@ router.post("/signup-email", async (request, response) => {
 
       const queryOtp =
         "INSERT INTO Otp(value, createdDate, id_account) OUTPUT inserted.id VALUES (@value, @createdDate, @id_account)";
-      const otpResult = await new database.Request()
+      const otpResult = await new sql.Request()
         .input("value", otp)
         .input("createdDate", createdDate)
         .input("id_account", insertedAccountId)
@@ -87,7 +86,7 @@ router.post("/signup-phone", async (request, response) => {
     const password = request.body.password;
     const query =
       "SELECT id, isVerify FROM Account WHERE userLogin = @userLogin";
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("userLogin", phone)
       .query(query);
 
@@ -117,7 +116,7 @@ router.post("/signup-phone", async (request, response) => {
 
       const queryAccount =
         "INSERT INTO Account(userLogin, password, role, isVerify , createdDate) OUTPUT inserted.id VALUES (@phone, @password, @role, @isVerify, @createdDate)";
-      const accountResult = await new database.Request()
+      const accountResult = await new sql.Request()
         .input("phone", phone)
         .input("password", password)
         .input("role", role)
@@ -131,7 +130,7 @@ router.post("/signup-phone", async (request, response) => {
 
       const queryOtp =
         "INSERT INTO Otp(value, createdDate, id_account) OUTPUT inserted.id VALUES (@value, @createdDate, @id_account)";
-      const otpResult = await new database.Request()
+      const otpResult = await new sql.Request()
         .input("value", otp)
         .input("createdDate", createdDate)
         .input("id_account", insertedAccountId)
@@ -162,7 +161,7 @@ router.post("/verify-otp", async (request, response) => {
 
     const query =
       "SELECT * FROM Otp WHERE id_account = @idAccount AND createdDate = (SELECT MAX(createdDate) FROM OTP ) AND id = @idOtp";
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("idAccount", idAccount)
       .input("idOtp", idOtp)
       .query(query);
@@ -173,13 +172,13 @@ router.post("/verify-otp", async (request, response) => {
       if (result.recordset[0].value === parseInt(otp)) {
         const queryAccount =
           "UPDATE Account SET isVerify  = 1 OUTPUT inserted.userLogin WHERE id = @idAccount";
-        const accountResult = await new database.Request()
+        const accountResult = await new sql.Request()
           .input("idAccount", idAccount)
           .query(queryAccount);
 
         const queryUser =
           "INSERT INTO [User] (id_account, contactFullName, createdDate) VALUES(@idAccount, @contactFullName, @createDated)";
-        const userResult = await new database.Request()
+        const userResult = await new sql.Request()
           .input("idAccount", idAccount)
           .input("createDated", result.recordset[0].createdDate)
           .input("contactFullName", accountResult.recordset[0].userLogin)
@@ -218,7 +217,7 @@ router.post("/resend-otp-email", async (request, response) => {
   try {
     const idAccount = request.body.userID;
     const query = "SELECT userLogin FROM Account WHERE id = @idAccount";
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("idAccount", idAccount)
       .query(query);
 
@@ -232,7 +231,7 @@ router.post("/resend-otp-email", async (request, response) => {
       const expiredDate = new Date(createdDate.getTime() + 32000);
       const queryOtp =
         "INSERT INTO Otp(value, createdDate, id_account) OUTPUT inserted.id VALUES (@value, @createdDate, @id_account)";
-      const otpResult = await new database.Request()
+      const otpResult = await new sql.Request()
         .input("value", otp)
         .input("createdDate", createdDate)
         .input("id_account", idAccount)
@@ -266,7 +265,7 @@ router.post("/resend-otp-phone", async (request, response) => {
     const phone = request.body.phone;
 
     const query = "SELECT userLogin FROM Account WHERE id = @idAccount";
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("idAccount", idAccount)
       .query(query);
 
@@ -277,7 +276,7 @@ router.post("/resend-otp-phone", async (request, response) => {
       const expiredDate = new Date(createdDate.getTime() + 32000);
       const queryOtp =
         "INSERT INTO Otp(value, createdDate, id_account) OUTPUT inserted.id  VALUES (@value, @createdDate, @id_account)";
-      const otpResult = await new database.Request()
+      const otpResult = await new sql.Request()
         .input("value", otp)
         .input("createdDate", createdDate)
         .input("id_account", idAccount)
@@ -311,7 +310,7 @@ router.post("/signin-email", async (request, response) => {
     const password = request.body.password;
 
     const query = "SELECT * FROM Account WHERE userLogin = @email";
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("email", email)
       .input("password", password)
       .query(query);
@@ -369,9 +368,7 @@ router.post("/signin-phone", async (request, response) => {
     const password = request.body.password;
 
     const query = "SELECT * FROM Account WHERE userLogin = @phone";
-    const result = await new database.Request()
-      .input("phone", phone)
-      .query(query);
+    const result = await new sql.Request().input("phone", phone).query(query);
     if (result.recordset.length === 0) {
       response.status(400).json({
         errorCode: "MSG0020",

@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 require("dotenv").config();
 
-const database = require("../../config");
+const { sql } = require("../../config");
 const jwt = require("jsonwebtoken");
 
 router.post("/signin-email", async (request, response) => {
@@ -11,7 +11,7 @@ router.post("/signin-email", async (request, response) => {
     const password = request.body.password;
 
     const query = "SELECT * FROM Account WHERE userLogin = @email";
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("email", email)
       .input("password", password)
       .query(query);
@@ -69,7 +69,7 @@ router.post("/signin-phone", async (request, response) => {
     const password = request.body.password;
 
     const query = "SELECT * FROM Account WHERE userLogin = @phone";
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("phone", phone)
       .query(query);
     if (result.recordset.length === 0) {

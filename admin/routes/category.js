@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
-require("dotenv").config();
-const database = require("../../config");
+const { sql } = require("../../config");
 
 const checkAuth = require("../../middleware/check_auth");
 const checkRoleAdmin = require("../../middleware/check_role_admin");
@@ -24,7 +23,7 @@ router.get("/get-list", async (request, response) => {
       FROM Category
       ORDER BY name
       `;
-    const result = await new database.Request().query(query);
+    const result = await new sql.Request().query(query);
     const resultMap = {};
     result.recordset.forEach((item) => {
       const { productCategoryID, ...rest } = item;
@@ -86,7 +85,7 @@ router.post(
             image = image + publicUrl;
             const queryCategory =
               "INSERT INTO Category(name, image) VALUES(@name, @image)";
-            const categoryResult = await new database.Request()
+            const categoryResult = await new sql.Request()
               .input("name", name)
               .input("image", image)
               .query(queryCategory);
@@ -127,7 +126,7 @@ router.put(
       if (!request.file) {
         const queryCategory =
           "UPDATE Category SET name = @name WHERE id = @idCategory";
-        const categoryResult = await new database.Request()
+        const categoryResult = await new sql.Request()
           .input("name", name)
           .input("idCategory", idCategory)
           .query(queryCategory);
@@ -158,7 +157,7 @@ router.put(
             image = image + publicUrl;
             const queryCategory =
               "UPDATE Category SET name = @name, image = @image WHERE id = @idCategory";
-            const categoryResult = await new database.Request()
+            const categoryResult = await new sql.Request()
               .input("name", name)
               .input("image", image)
               .input("idCategory", idCategory)
@@ -205,13 +204,13 @@ router.get("/get-list", async (request, response) => {
 
     const queryCategory =
       "SELECT * FROM Category ORDER BY name OFFSET @page ROWS FETCH NEXT @pageSize ROWS ONLY";
-    const categoryResult = await new database.Request()
+    const categoryResult = await new sql.Request()
       .input("page", parseInt(offset))
       .input("pageSize", parseInt(limit))
       .query(queryCategory);
 
     const queryTotalCategory = "SELECT COUNT(*) AS TotalRecords FROM category;";
-    const ResultTotalCategory = await new database.Request().query(
+    const ResultTotalCategory = await new sql.Request().query(
       queryTotalCategory
     );
 

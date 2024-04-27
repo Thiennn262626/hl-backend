@@ -1,8 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const router = express.Router();
-const database = require("../../config");
-const sql = require("mssql");
+const { sql } = require("../../config");
 
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
@@ -35,7 +34,7 @@ module.exports = router;
 // };
 // danh gia san pham
 router.post("/create", checkAuth, checkRole, async (request, response) => {
-  let transaction = new sql.Transaction(database);
+  const transaction = new sql.Transaction();
   try {
     const { order_item_id, comment, detailed_rating, images_id } = request.body;
 
@@ -179,7 +178,7 @@ router.get("/get_ratings_by_product", async (request, response) => {
     WHERE p.id = @product_id
     ORDER BY r.created_date DESC
       `;
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("product_id", product_id)
       .query(query);
     const resultMap = {};
@@ -298,7 +297,7 @@ router.get(
   async (request, response) => {
     try {
       const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await new database.Request()
+      const userResult = await new sql.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryUser);
       const userid = userResult.recordset[0].id;
@@ -338,7 +337,7 @@ router.get(
       WHERE u.id = @userid
       ORDER BY r.created_date DESC
       `;
-      const result = await new database.Request()
+      const result = await new sql.Request()
         .input("userid", userid)
         .query(query);
       const resultMap = {};
@@ -491,7 +490,7 @@ router.post(
             OUTPUT inserted.id AS id_media
             SELECT @url AS linkString, @createdDate AS created_date
           `;
-          const result = await new database.Request()
+          const result = await new sql.Request()
             .input("url", publicUrl)
             .input("createdDate", new Date())
             .query(query);
@@ -518,7 +517,7 @@ router.post(
 );
 
 // router.post("/import", async (request, response) => {
-//   let transaction = new sql.Transaction(database);
+//   const transaction = new sql.Transaction();
 //   try {
 //     const dataJson = request.body;
 //     const jsonDataImage = dataJson.images;
@@ -803,7 +802,7 @@ router.post(
 //     FROM Rating
 //     WHERE order_item_id IS NULL
 //     `;
-//     const result = await new database.query(query);
+//     const result = await new sql.query(query);
 //     const data = result.recordset;
 //     let res = [];
 //     for (const element of data) {
@@ -822,7 +821,7 @@ router.post(
 // });
 
 // async function xuly(element) {
-//   let transaction = new sql.Transaction(database);
+//   const transaction = new sql.Transaction();
 //   console.log("xuly", element);
 //   try {
 //     await transaction

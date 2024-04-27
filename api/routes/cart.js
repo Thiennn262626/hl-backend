@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const database = require("../../config");
+const { sql } = require("../../config");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 
@@ -18,7 +18,7 @@ router.post("/add-cart", checkAuth, checkRole, async (request, response) => {
     }
 
     const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await new database.Request()
+    const userResult = await new sql.Request()
       .input("idAccount", request.userData.uuid)
       .query(queryUser);
 
@@ -34,7 +34,7 @@ router.post("/add-cart", checkAuth, checkRole, async (request, response) => {
         VALUES (source.id_user, source.idProductSku, source.quantity, source.createdDate);
     `;
 
-    await new database.Request()
+    await new sql.Request()
       .input("idUser", userResult.recordset[0].id)
       .input("idProductSku", idProductSku)
       .input("quantity", quantity)
@@ -87,7 +87,7 @@ router.post(
       INNER JOIN Cart AS c ON u.id = c.id_user
       WHERE u.id_account = @idAccount AND c.id = @idCart;
     `;
-      const accessCheckResult = await new database.Request()
+      const accessCheckResult = await new sql.Request()
         .input("idAccount", request.userData.uuid)
         .input("idCart", idCart)
         .query(queryAccessCheck);
@@ -103,7 +103,7 @@ router.post(
       if (quantity <= 0) {
         // Nếu quantity <= 0 thì xóa sản phẩm khỏi giỏ hàng
         const deleteQuery = "DELETE FROM Cart WHERE id = @idCart";
-        await new database.Request().input("idCart", idCart).query(deleteQuery);
+        await new sql.Request().input("idCart", idCart).query(deleteQuery);
 
         response.status(200).json({
           status: 200,
@@ -112,7 +112,7 @@ router.post(
       } else {
         const updateQuery =
           "UPDATE Cart SET quantity = @quantity, createdDate = @createdDate WHERE id = @idCart";
-        await new database.Request()
+        await new sql.Request()
           .input("quantity", quantity)
           .input("idCart", idCart)
           .input("createdDate", createdDate)
@@ -194,7 +194,7 @@ async function getCartList(idAccount) {
     ORDER BY c.createdDate DESC;
   `;
 
-  const result = await new database.Request()
+  const result = await new sql.Request()
     .input("idAccount", idAccount)
     .query(query);
 

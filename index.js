@@ -1,6 +1,5 @@
 const express = require("express");
 var cors = require("cors");
-// require("dotenv").config();
 const path = require("path");
 const app = express();
 app.use(cors());
@@ -9,6 +8,9 @@ const port = 3000;
 
 const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
+
+const { connectToDatabase } = require("./config");
+connectToDatabase();
 
 //import file
 const accountRouter = require("./api/routes/account");

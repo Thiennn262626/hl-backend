@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const database = require("../../config");
+const { sql } = require("../../config");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 
@@ -22,7 +22,7 @@ router.get(
         WHERE u.id_account = @idAccount AND s.idProduct = @idProduct
       `;
 
-      const result = await new database.Request()
+      const result = await new sql.Request()
         .input("idAccount", request.userData.uuid)
         .input("idProduct", productID)
         .query(query);
@@ -83,7 +83,7 @@ router.post("/subcribe", checkAuth, checkRole, async (request, response) => {
     }
 
     const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await new database.Request()
+    const userResult = await new sql.Request()
       .input("idAccount", request.userData.uuid)
       .query(queryUser);
 
@@ -104,7 +104,7 @@ router.post("/subcribe", checkAuth, checkRole, async (request, response) => {
           VALUES (source.id_user, source.idProduct, source.createdDate);
       `;
 
-      await new database.Request()
+      await new sql.Request()
         .input("idUser", userResult.recordset[0].id)
         .input("idProduct", productID)
         .input("createdDate", createdDate)
@@ -143,7 +143,7 @@ router.post("/unsubcribe", checkAuth, checkRole, async (request, response) => {
     }
 
     const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await new database.Request()
+    const userResult = await new sql.Request()
       .input("idAccount", request.userData.uuid)
       .query(queryUser);
 
@@ -164,7 +164,7 @@ router.post("/unsubcribe", checkAuth, checkRole, async (request, response) => {
         OUTPUT $action AS Action;
         `;
 
-      const result = await new database.Request()
+      const result = await new sql.Request()
         .input("idUser", userResult.recordset[0].id)
         .input("idProduct", productID)
         .query(queryUnsubscribe);
@@ -214,7 +214,7 @@ async function getListProductSubcribe(idAccount) {
       ORDER BY s.createdDate DESC 
     `;
 
-    const result = await new database.Request()
+    const result = await new sql.Request()
       .input("idAccount", idAccount)
       .query(queryProduct);
 

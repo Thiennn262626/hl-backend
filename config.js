@@ -2,16 +2,6 @@ const sql = require("mssql");
 require("dotenv").config();
 // const config = require("./configs/dbs.info").name_database_01.config;
 
-// const config = {
-//   user: "kltn-server@jobhub-kltn-server",
-//   password: "28072002Thanh@",
-//   server: "jobhub-kltn-server.database.windows.net",
-//   database: "ktln-dbs",
-//   options: {
-//     encrypt: true,
-//     enableArithAbort: true,
-//   },
-// };
 const config = {
   user: "hl-shop-admin",
   password: "12345678QT#",
@@ -20,14 +10,24 @@ const config = {
   port: 1433,
   options: {
     encrypt: true,
+    trustServerCertificate: true,
   },
 };
-// const pool = sql.ConnectionPool(config);
-sql.connect(config, (err) => {
-  if (err) {
-    throw err;
+async function connectToDatabase() {
+  try {
+    await sql.connect(config);
+    console.log("Connected to the database");
+  } catch (error) {
+    console.error("Error connecting to the database:", error);
   }
-  console.log("Connection Successful!");
-});
+}
 
-module.exports = sql;
+// const pool = sql.ConnectionPool(config);
+// sql.connect(config, (err) => {
+//   if (err) {
+//     throw err;
+//   }
+//   console.log("Connection Successful!");
+// });
+
+module.exports = { connectToDatabase, sql };
