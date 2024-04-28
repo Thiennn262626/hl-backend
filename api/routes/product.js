@@ -448,12 +448,10 @@ router.get(
         default:
           break;
       }
-      //call api from web
-      res = await axios.get(
-        "http://127.0.0.1:8000/api/recommend-by-user?user_id=" + userid
-      );
-      if (res.data && res.data.result) {
-        id_list = res.data.result;
+
+      res = await recommendByUser(userid);
+      if (res.result) {
+        id_list = res.result;
         resultArray = resultArray.filter((item) =>
           id_list.includes(item.productID)
         );
@@ -470,6 +468,28 @@ router.get(
     }
   }
 );
+
+async function recommendByUser(user_id) {
+  try {
+    idx2userid_label = await RedisService.getJson("userid2label");
+    label_user = parseInt(idx2userid_label[user_id]);
+    most_5star_productId_user_i = await RedisService.getJson(
+      `most_5star_productId_user_${label_user}`
+    );
+    if (!most_5star_productId_user_i) {
+      return {
+        recommended_product: "No recommended product for this user",
+      };
+    }
+    return {
+      result: most_5star_productId_user_i,
+      total: most_5star_productId_user_i.length,
+    };
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
 
 router.get("/get-list-new", async (request, response) => {
   try {
@@ -901,47 +921,33 @@ router.get("/get-list-same-category", async (request, response) => {
   }
 });
 
-// productid2idx = redis_instance.get_redis_data("productid2idx")
-// product_index = productid2idx[product_id]
-// product_embedding = redis_instance.get_redis_data("trained_product_embeddings")
-// product_vector = product_embedding[product_index]
-// distances_x = [np.linalg.norm(np.array(v) - np.array(product_vector)) for v in product_embedding]
-// top60_product_index = np.argsort(distances_x)[1:61]
-// # chuyen index sang id dua tren value cua productid2idx
-// top60_product_id = [list(productid2idx.keys())[list(productid2idx.values()).index(i)] for i in top60_product_index]
-
-// return make_response(
-//     jsonify(
-//         {
-//             "result": top60_product_id,
-//             "total": len(top60_product_id),
-//         }
-//     ),
-//     200,
-// )
 async function recommendByProduct(productID) {
-  const productid2idx = await RedisService.getJson("productid2idx");
-  const product_index = productid2idx[productID];
-  const product_embedding = await RedisService.getJson(
-    "trained_product_embeddings"
-  );
-  const product_vector = product_embedding[product_index];
-  const distances_x = product_embedding.map((v) =>
-    calculateDistance(v, product_vector)
-  );
-  const sorted_indices = distances_x
-    .slice()
-    .sort((a, b) => a - b)
-    .map((_, i) => i)
-    .slice(1, 61);
+  try {
+    const productid2idx = await RedisService.getJson("productid2idx");
+    const product_index = productid2idx[productID];
+    const product_embedding = await RedisService.getJson(
+      "trained_product_embeddings"
+    );
+    const product_vector = product_embedding[product_index];
+    const distances_x = product_embedding.map((v) =>
+      calculateDistance(v, product_vector)
+    );
+    const sorted_indices = distances_x
+      .slice()
+      .sort((a, b) => a - b)
+      .map((_, i) => i)
+      .slice(1, 61);
 
-  const top60_product_id = sorted_indices.map((i) =>
-    Object.keys(productid2idx).find((key) => productid2idx[key] === i)
-  );
+    const top60_product_id = sorted_indices.map((i) =>
+      Object.keys(productid2idx).find((key) => productid2idx[key] === i)
+    );
 
-  return {
-    result: top60_product_id,
-  };
+    return {
+      result: top60_product_id,
+    };
+  } catch (error) {
+    throw error;
+  }
 }
 
 // Hàm tính khoảng cách giữa hai vector

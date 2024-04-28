@@ -9,8 +9,8 @@ const port = 3000;
 const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
 
-const { connectToDatabaseWithRetry } = require("./config");
-connectToDatabaseWithRetry();
+const { connectToDatabase } = require("./config");
+connectToDatabase();
 
 //import file
 const accountRouter = require("./api/routes/account");

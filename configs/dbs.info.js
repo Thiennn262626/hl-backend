@@ -10,7 +10,7 @@ module.exports = {
       database: process.env.AZURE_SQL_SERVER_DATABASE_NAME,
       options: {
         encrypt: true,
-        enableArithAbort: true,
+        trustServerCertificate: true,
       },
     },
   },
