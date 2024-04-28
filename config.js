@@ -22,12 +22,19 @@ async function connectToDatabase() {
   }
 }
 
-// const pool = sql.ConnectionPool(config);
-// sql.connect(config, (err) => {
-//   if (err) {
-//     throw err;
-//   }
-//   console.log("Connection Successful!");
-// });
+async function connectToDatabaseWithRetry() {
+  let connected = false;
+  while (!connected) {
+    try {
+      await sql.connect(config);
+      console.log("Connected to the database");
+      connected = true;
+    } catch (error) {
+      console.error("Error connecting to the database:", error);
+      console.log("Retrying in 1 seconds...");
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Thử lại sau 10 giây
+    }
+  }
+}
 
-module.exports = { connectToDatabase, sql };
+module.exports = { connectToDatabaseWithRetry, connectToDatabase, sql };

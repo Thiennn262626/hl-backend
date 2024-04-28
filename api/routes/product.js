@@ -252,13 +252,11 @@ router.get("/get-list-best-seller", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    let resultArray = await RedisService.get("listProduct");
+    let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
       resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
     }
 
     resultArray.sort((a, b) => {
@@ -368,13 +366,11 @@ router.get(
       var minAmount = parseInt(request.query.minAmount);
       var maxAmount = parseInt(request.query.maxAmount);
 
-      let resultArray = await RedisService.get("listProduct");
+      let resultArray = await RedisService.getJson("listProduct");
       if (!resultArray) {
         resultArray = await getListProduct();
-        RedisService.set("listProduct", JSON.stringify(resultArray));
+        RedisService.setJson("listProduct", resultArray);
         RedisService.expire("listProduct", 3000);
-      } else {
-        resultArray = JSON.parse(resultArray);
       }
 
       resultArray.sort((a, b) => {
@@ -484,13 +480,11 @@ router.get("/get-list-new", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    let resultArray = await RedisService.get("listProduct");
+    let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
       resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
     }
 
     resultArray.sort((a, b) => {
@@ -580,66 +574,21 @@ router.get("/get-list-new", async (request, response) => {
   }
 });
 
-router.get("/test", async (request, response) => {
-  try {
-    const query = `SELECT 
-    user_id,
-    job_id,
-    rating
-FROM
-(SELECT 
-    users.user_id,
-    job.job_id,
-    COALESCE(applied_count, 0) + COALESCE(views_count, 0) + COALESCE(likes_count, 0) AS rating
-FROM 
-    users
-CROSS JOIN job
-LEFT JOIN (
-    SELECT student_user_id, job_job_id, COUNT(*) AS applied_count
-    FROM job_apply
-    GROUP BY student_user_id, job_job_id
-) AS applied ON users.user_id = applied.student_user_id AND job.job_id = applied.job_job_id
-LEFT JOIN (
-    SELECT user_id, job_id, COALESCE(SUM(views), 0) AS views_count
-    FROM user_job_views
-    GROUP BY user_id, job_id
-) AS views ON users.user_id = views.user_id AND job.job_id = views.job_id
-LEFT JOIN (
-    SELECT user_user_id, job_job_id, COUNT(*) AS likes_count
-    FROM short_list
-    GROUP BY user_user_id, job_job_id
-) AS likes ON users.user_id = likes.user_user_id AND job.job_id = likes.job_job_id
-WHERE 
-    users.role_role_id = 2
-    AND users.is_verified = 1
-    AND job.is_active = 1) AS subquery
-WHERE 
-    rating != 0 AND rating != 1`;
-    const result = await new sql.Request().query(query);
-    response.status(200).json(result.recordset);
-  } catch (error) {
-    console.error(error);
-    response.status(500).json({ errorCode: error });
-  }
-});
-
 router.get("/get-list-hot", async (request, response) => {
   try {
-    await sql.connect();
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
     var sortBy = parseInt(request.query.sortBy);
     var search = request.query.search ? request.query.search.toLowerCase() : "";
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
+
     const resultArray = await getListProduct();
-    // let resultArray = await RedisService.get("listProduct");
+    // let resultArray = await RedisService.getJson("listProduct");
     // if (!resultArray) {
     //   resultArray = await getListProduct();
-    //   RedisService.set("listProduct", JSON.stringify(resultArray));
+    //   RedisService.setJson("listProduct", resultArray);
     //   RedisService.expire("listProduct", 3000);
-    // } else {
-    //   resultArray = JSON.parse(resultArray);
     // }
 
     resultArray.sort((a, b) => {
@@ -752,13 +701,11 @@ router.get("/get-list-good-price-today", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    let resultArray = await RedisService.get("listProduct");
+    let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
       resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
     }
 
     resultArray.sort((a, b) => {
@@ -927,21 +874,17 @@ router.get("/get-list-same-category", async (request, response) => {
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
 
-    let resultArray = await RedisService.get("listProduct");
+    let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
       resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
     }
 
     //call api from web
-    res = await axios.get(
-      "http://127.0.0.1:8000/api/recommend-by-product?product_id=" + productID
-    );
-    if (res.data && res.data.result) {
-      id_list = res.data.result;
+    res = await recommendByProduct(productID);
+    if (res.result) {
+      id_list = res.result;
       resultArray = resultArray.filter((item) =>
         id_list.includes(item.productID)
       );
@@ -957,6 +900,62 @@ router.get("/get-list-same-category", async (request, response) => {
     response.status(500).json({ errorCode: error });
   }
 });
+
+// productid2idx = redis_instance.get_redis_data("productid2idx")
+// product_index = productid2idx[product_id]
+// product_embedding = redis_instance.get_redis_data("trained_product_embeddings")
+// product_vector = product_embedding[product_index]
+// distances_x = [np.linalg.norm(np.array(v) - np.array(product_vector)) for v in product_embedding]
+// top60_product_index = np.argsort(distances_x)[1:61]
+// # chuyen index sang id dua tren value cua productid2idx
+// top60_product_id = [list(productid2idx.keys())[list(productid2idx.values()).index(i)] for i in top60_product_index]
+
+// return make_response(
+//     jsonify(
+//         {
+//             "result": top60_product_id,
+//             "total": len(top60_product_id),
+//         }
+//     ),
+//     200,
+// )
+async function recommendByProduct(productID) {
+  const productid2idx = await RedisService.getJson("productid2idx");
+  const product_index = productid2idx[productID];
+  const product_embedding = await RedisService.getJson(
+    "trained_product_embeddings"
+  );
+  const product_vector = product_embedding[product_index];
+  const distances_x = product_embedding.map((v) =>
+    calculateDistance(v, product_vector)
+  );
+  const sorted_indices = distances_x
+    .slice()
+    .sort((a, b) => a - b)
+    .map((_, i) => i)
+    .slice(1, 61);
+
+  const top60_product_id = sorted_indices.map((i) =>
+    Object.keys(productid2idx).find((key) => productid2idx[key] === i)
+  );
+
+  return {
+    result: top60_product_id,
+  };
+}
+
+// Hàm tính khoảng cách giữa hai vector
+function calculateDistance(vector1, vector2) {
+  // console.log(vector1, vector2);
+  if (!vector1 || !vector2 || vector1.length !== vector2.length) {
+    return NaN; // Trả về NaN nếu vector không tồn tại hoặc có độ dài không phù hợp
+  }
+  let sumSquaredDiff = 0;
+  for (let i = 0; i < vector1.length; i++) {
+    sumSquaredDiff += Math.pow(vector1[i] - vector2[i], 2);
+  }
+  return Math.sqrt(sumSquaredDiff);
+}
 
 router.get("/get-product-attribute", async (request, response) => {
   try {

@@ -13,8 +13,15 @@ class RedisService {
     return this.client.set(key, value);
   }
 
+  async setJson(key, value) {
+    return this.client.set(key, JSON.stringify(value));
+  }
+
   async get(key) {
     return this.client.get(key);
+  }
+  async getJson(key) {
+    return JSON.parse(await this.client.get(key));
   }
 
   async del(key) {
