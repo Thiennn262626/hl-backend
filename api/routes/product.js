@@ -4,8 +4,6 @@ const axios = require("axios");
 const router = express.Router();
 
 const { sql } = require("../../config");
-sql.connect();
-console.log("Connected to SQL Server in product.js");
 const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
@@ -598,6 +596,7 @@ router.get("/get-list-new", async (request, response) => {
 
 router.get("/get-list-hot", async (request, response) => {
   try {
+    sql.connect();
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
     var sortBy = parseInt(request.query.sortBy);
