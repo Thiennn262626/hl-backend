@@ -7,6 +7,7 @@ const { sql } = require("../../config");
 const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
+const checkConnectedSQL = require("../../middleware/check_connect_sql");
 
 async function getProductDetail(idProduct) {
   try {
@@ -594,9 +595,8 @@ router.get("/get-list-new", async (request, response) => {
   }
 });
 
-router.get("/get-list-hot", async (request, response) => {
+router.get("/get-list-hot", checkConnectedSQL, async (request, response) => {
   try {
-    await sql.connect();
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
     var sortBy = parseInt(request.query.sortBy);
@@ -605,6 +605,7 @@ router.get("/get-list-hot", async (request, response) => {
     var maxAmount = parseInt(request.query.maxAmount);
 
     const resultArray = await getListProduct();
+    console.log("time2: ", new Date().toISOString());
     // let resultArray = await RedisService.getJson("listProduct");
     // if (!resultArray) {
     //   resultArray = await getListProduct();
@@ -708,6 +709,7 @@ router.get("/get-list-hot", async (request, response) => {
       .status(200)
       .json({ result: paginatedResult, total: filteredResult.length });
   } catch (error) {
+    console.log("time e: ", new Date().toISOString());
     console.error(error);
     response.status(500).json({ errorCode: error });
   }
