@@ -7,7 +7,6 @@ const { sql } = require("../../config");
 const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
-const checkConnectedSQL = require("../../middleware/check_connect_sql");
 
 async function getProductDetail(idProduct) {
   try {
