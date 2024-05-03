@@ -596,7 +596,7 @@ router.get("/get-list-new", async (request, response) => {
 
 router.get("/get-list-hot", async (request, response) => {
   try {
-    sql.connect();
+    await sql.connect();
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
     var sortBy = parseInt(request.query.sortBy);
