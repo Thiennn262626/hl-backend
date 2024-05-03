@@ -4,6 +4,8 @@ const axios = require("axios");
 const router = express.Router();
 
 const { sql } = require("../../config");
+sql.connect();
+console.log("Connected to SQL Server in product.js");
 const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
