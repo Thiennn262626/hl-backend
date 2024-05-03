@@ -254,6 +254,7 @@ router.get("/get-list-best-seller", async (request, response) => {
 
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
+      await sql.connect();
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
@@ -368,6 +369,7 @@ router.get(
 
       let resultArray = await RedisService.getJson("listProduct");
       if (!resultArray) {
+        await sql.connect();
         resultArray = await getListProduct();
         RedisService.setJson("listProduct", resultArray);
         RedisService.expire("listProduct", 3000);
@@ -502,6 +504,7 @@ router.get("/get-list-new", async (request, response) => {
 
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
+      await sql.connect();
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
@@ -602,19 +605,15 @@ router.get("/get-list-hot", async (request, response) => {
     var search = request.query.search ? request.query.search.toLowerCase() : "";
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
-    console.log("time0: ", new Date().toISOString());
-    await sql.connect();
-    console.log("time1: ", new Date().toISOString());
-    const resultArray = await getListProduct();
-    console.log("time2: ", new Date().toISOString());
-    // let resultArray = await RedisService.getJson("listProduct");
-    // if (!resultArray) {
-    //   await sql.connect();
-    // console.log("time0: ", new Date().toISOString());
-    //   resultArray = await getListProduct();
-    //   RedisService.setJson("listProduct", resultArray);
-    //   RedisService.expire("listProduct", 3000);
-    // }
+
+    let resultArray = await RedisService.getJson("listProduct");
+    if (!resultArray) {
+      await sql.connect();
+      console.log("time0: ", new Date().toISOString());
+      resultArray = await getListProduct();
+      RedisService.setJson("listProduct", resultArray);
+      RedisService.expire("listProduct", 3000);
+    }
 
     resultArray.sort((a, b) => {
       const weightSellQuantity = 1; // Trọng số cho sellQuantity
@@ -729,6 +728,7 @@ router.get("/get-list-good-price-today", async (request, response) => {
 
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
+      await sql.connect();
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
@@ -902,6 +902,7 @@ router.get("/get-list-same-category", async (request, response) => {
 
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
+      await sql.connect();
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
