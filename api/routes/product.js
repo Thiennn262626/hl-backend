@@ -595,7 +595,7 @@ router.get("/get-list-new", async (request, response) => {
   }
 });
 
-router.get("/get-list-hot", checkConnectedSQL, async (request, response) => {
+router.get("/get-list-hot", async (request, response) => {
   try {
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
@@ -603,11 +603,15 @@ router.get("/get-list-hot", checkConnectedSQL, async (request, response) => {
     var search = request.query.search ? request.query.search.toLowerCase() : "";
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
-
+    console.log("time0: ", new Date().toISOString());
+    await sql.connect();
+    console.log("time1: ", new Date().toISOString());
     const resultArray = await getListProduct();
     console.log("time2: ", new Date().toISOString());
     // let resultArray = await RedisService.getJson("listProduct");
     // if (!resultArray) {
+    //   await sql.connect();
+    // console.log("time0: ", new Date().toISOString());
     //   resultArray = await getListProduct();
     //   RedisService.setJson("listProduct", resultArray);
     //   RedisService.expire("listProduct", 3000);
