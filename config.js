@@ -1,5 +1,5 @@
 const sql = require("mssql");
-const config = require("./configs/dbs.info").name_database_01.config;
+let config = require("./configs/dbs.info").name_database_01.config;
 
 async function connectToDatabase() {
   try {
