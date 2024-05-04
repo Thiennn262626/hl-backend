@@ -121,9 +121,8 @@ router.post(
   checkAuth,
   checkRoleAdmin,
   async (request, response) => {
-    const transaction = new sql.Transaction();
+    let transaction = new sql.Transaction();
     try {
-      console.log("request.query", request.query);
       const orderID = request.query.orderID;
       const orderStatus = Number(request.query.orderStatus);
       const now = new Date();
@@ -283,7 +282,7 @@ async function updateOrderPayment(orderID, transaction) {
         WHERE orderId = @orderID;
     `;
     await transaction
-      .Request()
+      .request()
       .input("orderID", orderID)
       .input("finishPay", false)
       .query(query);
@@ -304,7 +303,7 @@ async function createOrderTracking(
         VALUES (@orderId, @orderStatus, @createdDate);
         `;
     await transaction
-      .Request()
+      .request()
       .input("orderId", orderID)
       .input("orderStatus", orderStatus)
       .input("createdDate", DateNow)
@@ -321,7 +320,7 @@ async function updateOrderStatus(orderID, orderStatus, transaction) {
         WHERE id = @orderID;
         `;
     await transaction
-      .Request()
+      .request()
       .input("orderID", orderID)
       .input("orderStatus", orderStatus)
       .query(query);

@@ -15,7 +15,7 @@ const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 
 router.post("/create", checkAuth, checkRole, async (request, response) => {
-  const transaction = new sql.Transaction();
+  let transaction = new sql.Transaction();
   try {
     const { receiverAddressID, paymentMethod, carts } = request.body;
     const DateNow = new Date();
@@ -28,7 +28,11 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
       .then(async () => {
         //lay dia chi nguoi nhan
         const [toDistrictID, toWardCode, receiverAddress, idUser] =
-          await getAddressReceive(receiverAddressID, request.userData.uuid);
+          await getAddressReceive(
+            receiverAddressID,
+            request.userData.uuid,
+            transaction
+          );
         // tao bang order gom createDate, paymentMethod, userID,
         const { orderID } = await createOrder(
           idUser,
@@ -207,7 +211,7 @@ async function getSizeItem(cartID) {
   }
 }
 
-async function getAddressReceive(receiverAddressID, idAccount) {
+async function getAddressReceive(receiverAddressID, idAccount, transaction) {
   try {
     const query = `
     SELECT
@@ -229,7 +233,8 @@ async function getAddressReceive(receiverAddressID, idAccount) {
     JOIN AddressReceive AS ar ON u.id = ar.id_user
     WHERE ar.id = @receiverAddressID AND u.id_account = @idAccount;
     `;
-    const result = await new sql.Request()
+    const result = await transaction
+      .request()
       .input("receiverAddressID", receiverAddressID)
       .input("idAccount", idAccount)
       .query(query);
@@ -256,7 +261,7 @@ async function createPaymentOrder(orderID, amount, created, transaction) {
         VALUES (@orderID, @amount, @created, @finish_pay);
         `;
     await transaction
-      .Request()
+      .request()
       .input("orderID", orderID)
       .input("amount", amount)
       .input("created", created)
@@ -274,7 +279,7 @@ async function deleteCartItem(cartID, userID, transaction) {
         WHERE id = @cartID AND id_user = @userID;
         `;
     await transaction
-      .Request()
+      .request()
       .input("cartID", cartID)
       .input("userID", userID)
       .query(query);
@@ -295,7 +300,7 @@ async function createOrderTracking(
         VALUES (@orderId, @orderStatus, @createdDate);
         `;
     await transaction
-      .Request()
+      .request()
       .input("orderId", orderID)
       .input("orderStatus", orderStatus)
       .input("createdDate", DateNow)
@@ -321,7 +326,7 @@ async function insertOderCode(
             WHERE id = @orderID;
             `;
     await transaction
-      .Request()
+      .request()
       .input("orderID", orderID)
       .input("orderCode", orderCode)
       .input("totalPriceOrder", totalOrder)
@@ -351,7 +356,7 @@ async function mapCarttoOrderItem(cartID, orderID, userID, transaction) {
         `;
 
     const result = await transaction
-      .Request()
+      .request()
       .input("orderId", orderID)
       .input("cartID", cartID)
       .input("userID", userID)
@@ -369,7 +374,7 @@ async function mapCarttoOrderItem(cartID, orderID, userID, transaction) {
             WHERE ps.id = @productSkuID;
             `;
       const resultGetSku = await transaction
-        .Request()
+        .request()
         .input("productSkuID", result.recordset[0].productSku_id)
         .query(queryGetSku);
       const productSKU = {
@@ -403,7 +408,7 @@ async function mapCarttoOrderItem(cartID, orderID, userID, transaction) {
             WHERE id = @orderItemID;
             `;
       await transaction
-        .Request()
+        .request()
         .input("orderItemJsonToString", JSON.stringify(orderItem))
         .input("orderItemID", orderItem.orderItemID)
         .query(queryUpdateOrderItem);
@@ -439,7 +444,7 @@ async function createOrder(
         VALUES (@idUser, @paymentMethod, @createdDate, @orderStatus, @receiverAddress);
         `;
     const result = await transaction
-      .Request()
+      .request()
       .input("idUser", idUser)
       .input("paymentMethod", paymentMethod)
       .input("createdDate", DateNow)
@@ -999,8 +1004,8 @@ router.post(
   checkAuth,
   checkRole,
   async (request, response) => {
-    const transaction = new sql.Transaction();
     try {
+      let transaction = new sql.Transaction();
       const orderID = request.query.orderID;
       const orderStatus = Number(request.query.orderStatus);
       const now = new Date();
@@ -1188,7 +1193,7 @@ async function updateOrderPayment(orderID, transaction) {
         WHERE orderId = @orderID;
     `;
     await transaction
-      .Request()
+      .request()
       .input("orderID", orderID)
       .input("finishPay", false)
       .query(query);
@@ -1205,7 +1210,7 @@ async function updateOrderStatus(orderID, orderStatus, transaction) {
         WHERE id = @orderID;
         `;
     await transaction
-      .Request()
+      .request()
       .input("orderID", orderID)
       .input("orderStatus", orderStatus)
       .query(query);

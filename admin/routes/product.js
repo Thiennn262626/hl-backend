@@ -19,7 +19,7 @@ router.post(
   checkAuth,
   checkRoleAdmin,
   async (request, response) => {
-    const transaction = new sql.Transaction();
+    let transaction = new sql.Transaction();
     try {
       const jsonData = request.body;
       const name = jsonData.productName;
@@ -128,8 +128,8 @@ router.post(
 );
 
 async function insertProduct1(jsonData) {
-  const transaction = new sql.Transaction();
   try {
+    let transaction = new sql.Transaction();
     const item_id = jsonData.item_id;
     const name = jsonData.productName;
     const slogan = jsonData.productSlogan;
@@ -197,7 +197,6 @@ async function insertProduct1(jsonData) {
           attributes,
           id_product
         );
-        console.log(array_attribute);
         await processProductSKU(
           transaction,
           productSKUs,
@@ -235,7 +234,7 @@ async function updateMedia0(transaction, id_product, MediaID, isDefault = 0) {
       WHERE id = @MediaID
     `;
     const result = await transaction
-      .Request()
+      .request()
       .input("id_product", id_product)
       .input("MediaID", MediaID)
       .input("isDefault", isDefault)
@@ -263,7 +262,7 @@ async function updateMedia(
       WHERE id = @MediaID
     `;
     const result = await transaction
-      .Request()
+      .request()
       .input("id_product", id_product)
       .input("productAttributeValueID", productAttributeValueID)
       .input("title", title)
@@ -362,7 +361,7 @@ async function insertProductSKU(
         @quantity, @sold, @price, @priceBefore, @enable, @id_product, @id_product_attribute1, @id_product_attribute2
       `;
     const result = await transaction
-      .Request()
+      .request()
       .input("quantity", Number(productSKUs.totalStock))
       .input("sold", productSKUs.sold ? productSKUs.sold : 0)
       .input("price", Number(productSKUs.price))
@@ -449,7 +448,7 @@ async function insertProductAttributeValue(
         @valueName, @id_product_attribute
       `;
     const result = await transaction
-      .Request()
+      .request()
       .input("valueName", attributeValue.locAttributeValueName)
       .input("id_product_attribute", id_product_attribute)
       .query(query);
@@ -473,7 +472,7 @@ async function insertProductAttribute(
         @name, @description, @type, @id_product
       `;
     const result = await transaction
-      .Request()
+      .request()
       .input("name", attribute.locAttributeName)
       .input("description", attribute.locAttributeName)
       .input("type", index)
@@ -516,7 +515,7 @@ async function insertProduct(
       FROM [User], Category
       WHERE [User].id_account = @idAccount AND Category.id = @idCategory `;
     const result = await transaction
-      .Request()
+      .request()
       .input("name", name)
       .input("slogan", slogan)
       .input("description", description)

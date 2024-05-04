@@ -34,7 +34,7 @@ module.exports = router;
 // };
 // danh gia san pham
 router.post("/create", checkAuth, checkRole, async (request, response) => {
-  const transaction = new sql.Transaction();
+  let transaction = new sql.Transaction();
   try {
     const { order_item_id, comment, detailed_rating, images_id } = request.body;
 
@@ -58,7 +58,7 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
           VALUES(@order_item_id, @comment, @rating_star, @product_quality, @seller_service, @delivery_service, @driver_service, @user_id, @created_date)
         `;
         const result = await transaction
-          .Request()
+          .request()
           .input("order_item_id", order_item_id)
           .input("comment", comment)
           .input("rating_star", detailed_rating.product_quality)
@@ -78,7 +78,7 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
           `;
           for (const image of images_id) {
             await transaction
-              .Request()
+              .request()
               .input("rating_id", rating_id)
               .input("media_id", image)
               .input("created_date", new Date())

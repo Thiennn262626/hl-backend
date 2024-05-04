@@ -326,8 +326,9 @@ router.post(
   checkAuth,
   checkRole,
   async (request, response) => {
-    const transaction = new sql.Transaction();
     try {
+      // await sql.connect();
+      let transaction = new sql.Transaction();
       const emailAddress = request.body.emailAddress;
       const createdDate = new Date();
       await transaction
@@ -405,7 +406,7 @@ async function createOtpEmail(otp, createdDate, emailID, transaction) {
         VALUES (@value, @createdDate, @idEmail)
         `;
     const result = await transaction
-      .Request()
+      .request()
       .input("value", otp)
       .input("createdDate", createdDate)
       .input("idEmail", emailID)
@@ -439,7 +440,7 @@ async function createEmail(idAccount, emailAddress, isDefault, transaction) {
           WHERE idUser = @idUser AND emailAddress = @email;
         `;
     const result = await transaction
-      .Request()
+      .request()
       .input("email", emailAddress)
       .input("isDefault", isDefault)
       .input("idUser", userResult.recordset[0].id)
@@ -462,7 +463,7 @@ async function checkUserHaveEmail(idAccount, transaction) {
         WHERE [User].id_account = @idAccount AND Email.isVerify = 1
         `;
     const result = await transaction
-      .Request()
+      .request()
       .input("idAccount", idAccount)
       .query(query);
     if (result.recordset.length === 0) {
@@ -487,7 +488,7 @@ async function checkEmailIsExisting(emailAddress, idAccount, transaction) {
       order by Email.isVerify desc
       `;
     const resultEmail = await transaction
-      .Request()
+      .request()
       .input("idAccount", idAccount)
       .input("email", emailAddress)
       .query(queryEmail);
