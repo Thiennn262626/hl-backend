@@ -3,30 +3,21 @@ const express = require("express");
 const router = express.Router();
 const { sql } = require("../../config");
 
+const RedisService = require("../../services/redis.service");
+
 router.get("/get-list", async (request, response) => {
   try {
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
 
-    const query = ` SELECT 
-      id AS productCategoryID,
-      name AS productCategoryName,
-      image AS linkString
-      FROM Category
-      ORDER BY name
-      `;
-    const result = await new sql.Request().query(query);
-    const resultMap = {};
-    result.recordset.forEach((item) => {
-      const { productCategoryID, ...rest } = item;
-      if (!resultMap[productCategoryID]) {
-        resultMap[productCategoryID] = {
-          productCategoryID: productCategoryID,
-          ...rest,
-        };
-      }
-    });
-    const resultArray = Object.values(resultMap);
+    let resultArray = await RedisService.getJson("ListCategory");
+    if (!resultArray) {
+      await sql.connect();
+      resultArray = await getListCategory();
+      await RedisService.setJson("ListCategory", resultArray);
+      await RedisService.expire("ListCategory", 3000);
+    }
+
     const paginatedResult = resultArray.slice(offset, offset + limit);
     response.status(200).json({
       result: paginatedResult,
@@ -40,6 +31,31 @@ router.get("/get-list", async (request, response) => {
   }
 });
 
+async function getListCategory() {
+  try {
+    const query = ` SELECT 
+      id AS productCategoryID,
+      name AS productCategoryName,
+      image AS linkString
+      FROM Category
+      `;
+    const result = await new sql.Request().query(query);
+    const resultMap = {};
+    result.recordset.forEach((item) => {
+      const { productCategoryID, ...rest } = item;
+      if (!resultMap[productCategoryID]) {
+        resultMap[productCategoryID] = {
+          productCategoryID: productCategoryID,
+          ...rest,
+        };
+      }
+    });
+    const resultArray = Object.values(resultMap);
+    return resultArray;
+  } catch (error) {
+    throw error;
+  }
+}
 async function getListProductByCategory(idCategory) {
   try {
     const queryProduct = `
@@ -120,7 +136,23 @@ router.get("/detail", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    const resultArray = await getListProductByCategory(idCategory);
+    if (!idCategory) {
+      response.status(400).json({ errorCode: "Invalid productCategoryID" });
+      return;
+    }
+
+    let resultArray = await RedisService.getJson(
+      `ListProductByCategory_${idCategory}`
+    );
+    if (!resultArray) {
+      await sql.connect();
+      resultArray = await getListProductByCategory(idCategory);
+      await RedisService.setJson(
+        `ListProductByCategory_${idCategory}`,
+        resultArray
+      );
+      await RedisService.expire(`ListProductByCategory_${idCategory}`, 3000);
+    }
 
     const filteredResult = resultArray.filter((item) => {
       const productNameMatch = item.productName

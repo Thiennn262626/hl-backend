@@ -168,7 +168,14 @@ router.get("/get-detail", async (request, response) => {
       });
       return;
     }
-    const result = await getProductDetail(idProduct);
+
+    let result = await RedisService.getJson(`product_${idProduct}`);
+    if (!result) {
+      await sql.connect();
+      result = await getProductDetail(idProduct);
+      RedisService.setJson(`product_${idProduct}`, result);
+      RedisService.expire(`product_${idProduct}`, 3000);
+    }
     response.status(200).json(result);
   } catch (error) {
     console.log(error);
@@ -973,7 +980,21 @@ function calculateDistance(vector1, vector2) {
 router.get("/get-product-attribute", async (request, response) => {
   try {
     const productID = request.query.productID;
-    const responseData = await getProductAttributes(productID);
+    if (!productID) {
+      response.status(400).json({
+        error: "ProductID is required",
+      });
+      return;
+    }
+    const responseData = await RedisService.getJson(
+      "product_attribute_" + productID
+    );
+    if (!responseData) {
+      await sql.connect();
+      responseData = await getProductAttributes(productID);
+      RedisService.setJson("product_attribute_" + productID, responseData);
+      RedisService.expire("product_attribute_" + productID, 3000);
+    }
     response.status(200).json(responseData);
   } catch (error) {
     console.log(error);
@@ -1037,7 +1058,20 @@ async function getProductAttributes(productID) {
 router.get("/get-product-sku-by-product-id", async (request, response) => {
   try {
     const productID = request.query.productID;
-    const skuss = await processSkus(productID);
+    if (!productID) {
+      response.status(400).json({
+        error: "ProductID is required",
+      });
+      return;
+    }
+
+    const skuss = await RedisService.getJson("product_sku_" + productID);
+    if (!skuss) {
+      await sql.connect();
+      skuss = await processSkus(productID);
+      RedisService.setJson("product_sku_" + productID, skuss);
+      RedisService.expire("product_sku_" + productID, 3000);
+    }
     response.status(200).json({
       productID: productID,
       productSKU: skuss,
