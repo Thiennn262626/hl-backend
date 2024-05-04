@@ -7,7 +7,8 @@
     "node": "20.x"
   },
    "scripts": {
-    "start": "nodemon index.js"
+    "start": "nodemon index.js",
+    "build": "cross-env NODE_ENV=production node index.js"
   },
   "keywords": [],
   "author": "",
