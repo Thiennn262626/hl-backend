@@ -174,7 +174,7 @@ router.get("/get-detail", async (request, response) => {
       await sql.connect();
       result = await getProductDetail(idProduct);
       RedisService.setJson(`product_${idProduct}`, result);
-      RedisService.expire(`product_${idProduct}`, 3000);
+      RedisService.expire(`product_${idProduct}`, 1000);
     }
     response.status(200).json(result);
   } catch (error) {
