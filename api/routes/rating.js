@@ -1,8 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const router = express.Router();
-const database = require("../../config");
-const sql = require("mssql");
+const { sql } = require("../../config");
 
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
@@ -35,7 +34,7 @@ module.exports = router;
 // };
 // danh gia san pham
 router.post("/create", checkAuth, checkRole, async (request, response) => {
-  let transaction = new sql.Transaction(database);
+  let transaction = new sql.Transaction();
   try {
     const { order_item_id, comment, detailed_rating, images_id } = request.body;
 
@@ -179,8 +178,7 @@ router.get("/get_ratings_by_product", async (request, response) => {
     WHERE p.id = @product_id
     ORDER BY r.created_date DESC
       `;
-    const result = await database
-      .request()
+    const result = await new sql.Request()
       .input("product_id", product_id)
       .query(query);
     const resultMap = {};
@@ -299,8 +297,7 @@ router.get(
   async (request, response) => {
     try {
       const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await database
-        .request()
+      const userResult = await new sql.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryUser);
       const userid = userResult.recordset[0].id;
@@ -340,8 +337,7 @@ router.get(
       WHERE u.id = @userid
       ORDER BY r.created_date DESC
       `;
-      const result = await database
-        .request()
+      const result = await new sql.Request()
         .input("userid", userid)
         .query(query);
       const resultMap = {};
@@ -494,8 +490,7 @@ router.post(
             OUTPUT inserted.id AS id_media
             SELECT @url AS linkString, @createdDate AS created_date
           `;
-          const result = await database
-            .request()
+          const result = await new sql.Request()
             .input("url", publicUrl)
             .input("createdDate", new Date())
             .query(query);
@@ -522,7 +517,7 @@ router.post(
 );
 
 // router.post("/import", async (request, response) => {
-//   let transaction = new sql.Transaction(database);
+//   const transaction = new sql.Transaction();
 //   try {
 //     const dataJson = request.body;
 //     const jsonDataImage = dataJson.images;
@@ -543,8 +538,8 @@ router.post(
 //     const queryGetProduct = `
 //     SELECT id FROM Product WHERE item_id = @modelid
 //     `;
-//     const result1 = await database
-//       .request()
+//     const result1 = await new database
+//       .Request()
 //       .input("modelid", dataJson.itemid.toString().trim())
 //       .query(queryGetProduct);
 //     console.log("result1: ", result1.recordset);
@@ -596,7 +591,7 @@ router.post(
 //       SELECT @created_date AS created_date, @edit_date AS edit_date, @product_quality AS product_quality, @seller_service AS seller_service, @delivery_service AS delivery_service, @driver_service AS driver_service, @comment AS comment, @product_sku_option AS product_sku_option, @id_user_num AS id_user_num, @comment_reply AS comment_reply, @userid_reply AS userid_reply, @created_date_reply AS created_date_reply, @orderid_num AS orderid_num, @author_username AS author_username, @author_portrait AS author_portrait, @product_sku_id AS product_sku_id
 //        `;
 //         const result = await transaction
-//           .request()
+//           .Request()
 //           .input("created_date", new Date(dataJson.ctime * 1000))
 //           .input(
 //             "edit_date",
@@ -680,8 +675,8 @@ router.post(
 //       LEFT JOIN Media ON Product.id = Media.id_product
 //       WHERE idProduct = @productID AND ps.quantity > 0 AND ps.enable = 1
 //       `;
-//     const result = await database
-//       .request()
+//     const result = await new database
+//       .Request()
 //       .input("productID", productID)
 //       .query(query);
 //     const resultMap = {};
@@ -782,7 +777,7 @@ router.post(
 //       SELECT @url AS linkString ,@created_date AS created_date, @id_rating AS id_rating
 //     `;
 //     const result = await transaction
-//       .request()
+//       .Request()
 //       .input("url", data)
 //       .input("created_date", new Date())
 //       .input("id_rating", id_rating)
@@ -807,7 +802,7 @@ router.post(
 //     FROM Rating
 //     WHERE order_item_id IS NULL
 //     `;
-//     const result = await database.query(query);
+//     const result = await new sql.query(query);
 //     const data = result.recordset;
 //     let res = [];
 //     for (const element of data) {
@@ -826,7 +821,7 @@ router.post(
 // });
 
 // async function xuly(element) {
-//   let transaction = new sql.Transaction(database);
+//   const transaction = new sql.Transaction();
 //   console.log("xuly", element);
 //   try {
 //     await transaction
@@ -843,7 +838,7 @@ router.post(
 //           WHERE userLogin = @userLogin
 //           `;
 //         const resultCheckAccount = await transaction
-//           .request()
+//           .Request()
 //           .input("userLogin", element.id_user_num.trim() + "@gmail.com")
 //           .query(queryCheckAccount);
 //         console.log("resultCheckAccount", resultCheckAccount.recordset[0]);
@@ -859,7 +854,7 @@ router.post(
 //           SELECT @userLogin AS userLogin, @password AS password, @role AS role, @isVerify AS isVerify, @createdDate AS createdDate
 //           `;
 //           const result1 = await transaction
-//             .request()
+//             .Request()
 //             .input("userLogin", element.id_user_num.trim() + "@gmail.com")
 //             .input("password", element.id_user_num.trim() + "1@aA")
 //             .input("role", 0)
@@ -874,7 +869,7 @@ router.post(
 //           SELECT @idAccount AS id_account, @name AS contactFullName, @avatar AS userAvatar, @createdDate AS createdDate
 //           `;
 //           const result2 = await transaction
-//             .request()
+//             .Request()
 //             .input("idAccount", result1.recordset[0].idAccount)
 //             .input("name", element.author_username)
 //             .input(
@@ -897,7 +892,7 @@ router.post(
 //           WHERE orderCode = @orderCode
 //           `;
 //         const resultCheckOrder = await transaction
-//           .request()
+//           .Request()
 //           .input("orderCode", "SHOPEE" + element.orderid_num.trim())
 //           .query(queryCheckOrder);
 //         console.log("resultCheckOrder", resultCheckOrder.recordset[0]);
@@ -917,7 +912,7 @@ router.post(
 //           const receiverAddresss = getRe(element.author_username, idUser);
 
 //           const result3 = await transaction
-//             .request()
+//             .Request()
 //             .input("createdDate", new Date(element.created_date - 9999909))
 //             .input("idUser", idUser)
 //             .input("orderStatus", 4)
@@ -945,7 +940,7 @@ router.post(
 //           WHERE id = @idOrder
 //           `;
 //         await transaction
-//           .request()
+//           .Request()
 //           .input("totalPriceOrder", getInfo[0] + totalPriceOrder)
 //           .input("idOrder", idOrder)
 //           .query(query4);
@@ -957,7 +952,7 @@ router.post(
 //           WHERE id = @idRating
 //           `;
 //         await transaction
-//           .request()
+//           .Request()
 //           .input("order_item_id", getInfo[1].orderItemID)
 //           .input("idRating", element.id)
 //           .query(query5);
@@ -1024,7 +1019,7 @@ router.post(
 //         `;
 
 //     const result = await transaction
-//       .request()
+//       .Request()
 //       .input("productSkuID", productSkuID)
 //       .input("quantity", Math.floor(Math.random() * 3) + 1)
 //       .input("orderId", orderID)
@@ -1043,7 +1038,7 @@ router.post(
 //             WHERE ps.id = @productSkuID;
 //             `;
 //       const resultGetSku = await transaction
-//         .request()
+//         .Request()
 //         .input("productSkuID", result.recordset[0].productSku_id)
 //         .query(queryGetSku);
 //       const productSKU = {
@@ -1080,7 +1075,7 @@ router.post(
 //             WHERE id = @orderItemID;
 //             `;
 //       await transaction
-//         .request()
+//         .Request()
 //         .input("orderItemJsonToString", JSON.stringify(orderItem))
 //         .input("orderItemID", orderItem.orderItemID)
 //         .query(queryUpdateOrderItem);

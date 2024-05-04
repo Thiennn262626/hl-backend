@@ -1,10 +1,9 @@
-const database = require("../config");
+const { sql } = require("../config");
 
 async function checkRole(request, response, next) {
   try {
     const queryAccount = "SELECT * FROM Account WHERE id = @id";
-    const accountResult = await database
-      .request()
+    const accountResult = await new sql.Request()
       .input("id", request.userData.uuid)
       .query(queryAccount);
 

@@ -3,7 +3,7 @@ const axios = require("axios");
 
 const router = express.Router();
 
-const database = require("../../config");
+const { sql } = require("../../config");
 const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
@@ -45,8 +45,7 @@ async function getProductDetail(idProduct) {
       WHERE p.id = @idProduct AND ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
     `;
 
-    const result = await database
-      .request()
+    const result = await new sql.Request()
       .input("idProduct", idProduct)
       .query(queryProduct);
 
@@ -64,8 +63,7 @@ async function getProductDetail(idProduct) {
     JOIN [User] AS u ON r.id_user = u.id
     WHERE p.id =  @product_id
     `;
-    const result_summary = await database
-      .request()
+    const result_summary = await new sql.Request()
       .input("product_id", idProduct)
       .query(query_summary);
     const resultMap = {};
@@ -170,7 +168,14 @@ router.get("/get-detail", async (request, response) => {
       });
       return;
     }
-    const result = await getProductDetail(idProduct);
+
+    let result = await RedisService.getJson(`product_${idProduct}`);
+    if (!result) {
+      await sql.connect();
+      result = await getProductDetail(idProduct);
+      RedisService.setJson(`product_${idProduct}`, result);
+      RedisService.expire(`product_${idProduct}`, 1001);
+    }
     response.status(200).json(result);
   } catch (error) {
     console.log(error);
@@ -204,7 +209,7 @@ async function getListProduct() {
               JOIN Media as m ON p.id = m.id_product
               WHERE ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
             `;
-    const result = await database.request().query(queryProduct);
+    const result = await new sql.Request().query(queryProduct);
 
     const resultMap = {};
     result.recordset.forEach((item) => {
@@ -254,13 +259,12 @@ router.get("/get-list-best-seller", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    let resultArray = await RedisService.get("listProduct");
+    let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
+      await sql.connect();
       resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
     }
 
     resultArray.sort((a, b) => {
@@ -357,8 +361,7 @@ router.get(
   async (request, response) => {
     try {
       const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await database
-        .request()
+      const userResult = await new sql.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryUser);
       const userid = userResult.recordset[0].id;
@@ -371,13 +374,12 @@ router.get(
       var minAmount = parseInt(request.query.minAmount);
       var maxAmount = parseInt(request.query.maxAmount);
 
-      let resultArray = await RedisService.get("listProduct");
+      let resultArray = await RedisService.getJson("listProduct");
       if (!resultArray) {
+        await sql.connect();
         resultArray = await getListProduct();
-        RedisService.set("listProduct", JSON.stringify(resultArray));
+        RedisService.setJson("listProduct", resultArray);
         RedisService.expire("listProduct", 3000);
-      } else {
-        resultArray = JSON.parse(resultArray);
       }
 
       resultArray.sort((a, b) => {
@@ -455,12 +457,10 @@ router.get(
         default:
           break;
       }
-      //call api from web
-      res = await axios.get(
-        "http://127.0.0.1:8000/api/recommend-by-user?user_id=" + userid
-      );
-      if (res.data && res.data.result) {
-        id_list = res.data.result;
+
+      res = await recommendByUser(userid);
+      if (res.result) {
+        id_list = res.result;
         resultArray = resultArray.filter((item) =>
           id_list.includes(item.productID)
         );
@@ -478,6 +478,28 @@ router.get(
   }
 );
 
+async function recommendByUser(user_id) {
+  try {
+    idx2userid_label = await RedisService.getJson("userid2label");
+    label_user = parseInt(idx2userid_label[user_id]);
+    most_5star_productId_user_i = await RedisService.getJson(
+      `most_5star_productId_user_${label_user}`
+    );
+    if (!most_5star_productId_user_i) {
+      return {
+        recommended_product: "No recommended product for this user",
+      };
+    }
+    return {
+      result: most_5star_productId_user_i,
+      total: most_5star_productId_user_i.length,
+    };
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
 router.get("/get-list-new", async (request, response) => {
   try {
     var offset = parseInt(request.query.offset) || 0;
@@ -487,13 +509,12 @@ router.get("/get-list-new", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    let resultArray = await RedisService.get("listProduct");
+    let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
+      await sql.connect();
       resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
     }
 
     resultArray.sort((a, b) => {
@@ -591,13 +612,15 @@ router.get("/get-list-hot", async (request, response) => {
     var search = request.query.search ? request.query.search.toLowerCase() : "";
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
-    let resultArray = await RedisService.get("listProduct");
+
+    let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
+      console.log("time0: ", new Date().toISOString());
+      await sql.connect();
+      console.log("time1: ", new Date().toISOString());
       resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
     }
 
     resultArray.sort((a, b) => {
@@ -696,6 +719,7 @@ router.get("/get-list-hot", async (request, response) => {
       .status(200)
       .json({ result: paginatedResult, total: filteredResult.length });
   } catch (error) {
+    console.log("time e: ", new Date().toISOString());
     console.error(error);
     response.status(500).json({ errorCode: error });
   }
@@ -710,13 +734,12 @@ router.get("/get-list-good-price-today", async (request, response) => {
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
-    let resultArray = await RedisService.get("listProduct");
+    let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
+      await sql.connect();
       resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
     }
 
     resultArray.sort((a, b) => {
@@ -836,8 +859,8 @@ router.get("/get-list-good-price-today", async (request, response) => {
 //       ORDER BY p.sellQuantity DESC
 //     `;
 
-//     const result = await database
-//       .request()
+//     const result = await new sql
+//       .Request()
 //       .input("idCategory", idCategory)
 //       .input("idProduct", idProduct)
 //       .query(queryProduct);
@@ -885,21 +908,18 @@ router.get("/get-list-same-category", async (request, response) => {
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
 
-    let resultArray = await RedisService.get("listProduct");
+    let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
+      await sql.connect();
       resultArray = await getListProduct();
-      RedisService.set("listProduct", JSON.stringify(resultArray));
+      RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
-    } else {
-      resultArray = JSON.parse(resultArray);
     }
 
     //call api from web
-    res = await axios.get(
-      "http://127.0.0.1:8000/api/recommend-by-product?product_id=" + productID
-    );
-    if (res.data && res.data.result) {
-      id_list = res.data.result;
+    res = await recommendByProduct(productID);
+    if (res.result) {
+      id_list = res.result;
       resultArray = resultArray.filter((item) =>
         id_list.includes(item.productID)
       );
@@ -916,10 +936,66 @@ router.get("/get-list-same-category", async (request, response) => {
   }
 });
 
+async function recommendByProduct(productID) {
+  try {
+    const productid2idx = await RedisService.getJson("productid2idx");
+    const product_index = productid2idx[productID];
+    const product_embedding = await RedisService.getJson(
+      "trained_product_embeddings"
+    );
+    const product_vector = product_embedding[product_index];
+    const distances_x = product_embedding.map((v) =>
+      calculateDistance(v, product_vector)
+    );
+    const sorted_indices = distances_x
+      .slice()
+      .sort((a, b) => a - b)
+      .map((_, i) => i)
+      .slice(1, 61);
+
+    const top60_product_id = sorted_indices.map((i) =>
+      Object.keys(productid2idx).find((key) => productid2idx[key] === i)
+    );
+
+    return {
+      result: top60_product_id,
+    };
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Hàm tính khoảng cách giữa hai vector
+function calculateDistance(vector1, vector2) {
+  // console.log(vector1, vector2);
+  if (!vector1 || !vector2 || vector1.length !== vector2.length) {
+    return NaN; // Trả về NaN nếu vector không tồn tại hoặc có độ dài không phù hợp
+  }
+  let sumSquaredDiff = 0;
+  for (let i = 0; i < vector1.length; i++) {
+    sumSquaredDiff += Math.pow(vector1[i] - vector2[i], 2);
+  }
+  return Math.sqrt(sumSquaredDiff);
+}
+
 router.get("/get-product-attribute", async (request, response) => {
   try {
     const productID = request.query.productID;
-    const responseData = await getProductAttributes(productID);
+    if (!productID) {
+      response.status(400).json({
+        error: "ProductID is required",
+      });
+      return;
+    }
+    let responseData = await RedisService.getJson(
+      "product_attribute_" + productID
+    );
+    if (!responseData) {
+      await sql.connect();
+      responseData = await getProductAttributes(productID);
+      RedisService.setJson("product_attribute_" + productID, responseData);
+      RedisService.expire("product_attribute_" + productID, 3000);
+    }
     response.status(200).json(responseData);
   } catch (error) {
     console.log(error);
@@ -944,8 +1020,7 @@ async function getProductAttributes(productID) {
     ORDER BY pa.type, pav.id;
   `;
 
-  const result = await database
-    .request()
+  const result = await new sql.Request()
     .input("productID", productID)
     .query(query);
 
@@ -984,7 +1059,20 @@ async function getProductAttributes(productID) {
 router.get("/get-product-sku-by-product-id", async (request, response) => {
   try {
     const productID = request.query.productID;
-    const skuss = await processSkus(productID);
+    if (!productID) {
+      response.status(400).json({
+        error: "ProductID is required",
+      });
+      return;
+    }
+
+    let skuss = await RedisService.getJson("product_sku_" + productID);
+    if (!skuss) {
+      await sql.connect();
+      skuss = await processSkus(productID);
+      RedisService.setJson("product_sku_" + productID, skuss);
+      RedisService.expire("product_sku_" + productID, 3000);
+    }
     response.status(200).json({
       productID: productID,
       productSKU: skuss,
@@ -1025,8 +1113,7 @@ async function processSkus(productID) {
       LEFT JOIN Media ON Product.id = Media.id_product
       WHERE idProduct = @productID AND ps.quantity > 0 AND ps.enable = 1
       `;
-    const result = await database
-      .request()
+    const result = await new sql.Request()
       .input("productID", productID)
       .query(query);
     const resultMap = {};

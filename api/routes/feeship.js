@@ -2,7 +2,7 @@ const express = require("express");
 const { token, getInfoService } = require("../../utils/shipping");
 const axios = require("axios");
 const router = express.Router();
-const database = require("../../config");
+const { sql } = require("../../config");
 
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
@@ -104,10 +104,7 @@ async function getSizeItem(cartID) {
     JOIN Product AS p ON ps.idProduct = p.id
     WHERE c.id = @cartID;
     `;
-    const result = await database
-      .request()
-      .input("cartID", cartID)
-      .query(query);
+    const result = await new sql.Request().input("cartID", cartID).query(query);
     if (result.recordset.length === 0) {
       throw "Not Exist cartID";
     } else {
@@ -136,8 +133,7 @@ async function getIdDistrictAndWardCode(receiverAddressID, idAccount) {
     JOIN AddressReceive AS ar ON u.id = ar.id_user
     WHERE ar.id = @receiverAddressID AND u.id_account = @idAccount;
     `;
-    const result = await database
-      .request()
+    const result = await new sql.Request()
       .input("receiverAddressID", receiverAddressID)
       .input("idAccount", idAccount)
       .query(query);

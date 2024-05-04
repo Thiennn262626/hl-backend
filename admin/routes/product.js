@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
-require("dotenv").config();
-const sql = require("mssql");
-const database = require("../../config");
+//
+const { sql } = require("../../config");
 
 const checkAuth = require("../../middleware/check_auth");
 const checkRoleAdmin = require("../../middleware/check_role_admin");
@@ -20,7 +19,7 @@ router.post(
   checkAuth,
   checkRoleAdmin,
   async (request, response) => {
-    let transaction = new sql.Transaction(database);
+    let transaction = new sql.Transaction();
     try {
       const jsonData = request.body;
       const name = jsonData.productName;
@@ -129,8 +128,8 @@ router.post(
 );
 
 async function insertProduct1(jsonData) {
-  let transaction = new sql.Transaction(database);
   try {
+    let transaction = new sql.Transaction();
     const item_id = jsonData.item_id;
     const name = jsonData.productName;
     const slogan = jsonData.productSlogan;
@@ -198,7 +197,6 @@ async function insertProduct1(jsonData) {
           attributes,
           id_product
         );
-        console.log(array_attribute);
         await processProductSKU(
           transaction,
           productSKUs,
@@ -577,8 +575,7 @@ router.post(
             OUTPUT inserted.id AS id_media
             SELECT @url AS linkString, @title AS title, @description AS description, @createdDate AS createdDate
           `;
-          const result = await database
-            .request()
+          const result = await new sql.Request()
             .input("url", publicUrl)
             .input("title", uniqueFileName)
             .input("description", uniqueFileName)
@@ -631,7 +628,7 @@ async function getListProduct() {
               JOIN Media as m ON p.id = m.id_product
               ORDER BY p.sellQuantity DESC
             `;
-    const result = await database.request().query(queryProduct);
+    const result = await new sql.Request().query(queryProduct);
 
     const resultMap = {};
     result.recordset.forEach((item) => {
@@ -827,8 +824,7 @@ async function processSkus(productID) {
       LEFT JOIN Media ON Product.id = Media.id_product
       WHERE idProduct = @productID
       `;
-    const result = await database
-      .request()
+    const result = await new sql.Request()
       .input("productID", productID)
       .query(query);
     const resultMap = {};
@@ -935,8 +931,7 @@ router.post("/enable-product", checkAuth, checkRoleAdmin, async (req, res) => {
       SET enable = @enable
       WHERE id = @productID
     `;
-      const result = await database
-        .request()
+      const result = await new sql.Request()
         .input("productID", productID)
         .input("enable", enable)
         .query(query);
@@ -977,8 +972,7 @@ router.post("/enable-sku", checkAuth, checkRoleAdmin, async (req, res) => {
       SET enable = @enable
       WHERE id = @productSKUID
     `;
-      const result = await database
-        .request()
+      const result = await new sql.Request()
         .input("productSKUID", productSKUID)
         .input("enable", enable)
         .query(query);
@@ -1013,8 +1007,7 @@ router.post("/restock-sku", checkAuth, checkRoleAdmin, async (req, res) => {
       SET quantity = @totalStock
       WHERE id = @productSKUID
     `;
-    const result = await database
-      .request()
+    const result = await new sql.Request()
       .input("productSKUID", productSKUID)
       .input("totalStock", totalStock)
       .query(query);

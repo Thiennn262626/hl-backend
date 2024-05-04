@@ -1,16 +1,15 @@
 const express = require("express");
 var cors = require("cors");
-require("dotenv").config();
 const path = require("path");
 const app = express();
 app.use(cors());
 
 const port = 3000;
 
+const { connectToDatabase } = require("./config");
+connectToDatabase();
 const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
-
-// const initSql = require("./dbs/init.sqlserver");
 
 //import file
 const accountRouter = require("./api/routes/account");
@@ -61,45 +60,12 @@ app.use("/api/hlshop/admin/product", adminProductRouter);
 app.use("/api/hlshop/admin/order", adminOrderRouter);
 app.use("/api/hlshop/admin/users", adminUserRouter);
 
-const { name_database_01 } = require("./configs/dbs.info");
-
-const sql = require("mssql");
-const { redis_info } = require("./configs/dbs.info");
-// const config = name_database_01.config;
-const config = {
-  user: process.env.AZURE_SQL_SERVER_USER_NAME,
-  password: process.env.AZURE_SQL_SERVER_PASSWORD,
-  server: process.env.AZURE_SQL_SERVER_HOST_NAME,
-  database: process.env.AZURE_SQL_SERVER_DATABASE_NAME,
-  options: {
-    encrypt: true,
-    enableArithAbort: true,
-  },
-};
-const pool = new sql.ConnectionPool(config);
-var check = "false";
-
-const connection = pool
-  .connect()
-  .then(() => {
-    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...0000");
-    check = "true000";
-  })
-  .catch((err) => {
-    console.error("Lỗi kết nối: " + err.stack);
-    check = "falseeeeeeee000 " + err;
-  });
 app.get("/", function (request, response) {
   response.send({
-    message: "Welcome to HLShop API",
-    check: check,
-    config: config,
-    redis_info: redis_info,
+    message: "Welcome to HLShop API1",
   });
 });
 
-// const router = require("express").Router();
-// app.use("/", router);
 app.listen(port, () =>
   console.log(`Server is running on port http://localhost:${port}`)
 );

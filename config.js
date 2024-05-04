@@ -1,15 +1,14 @@
 const sql = require("mssql");
-require("dotenv").config();
-const { name_database_01 } = require("./configs/dbs.info");
-const config = name_database_01.config;
-const pool = new sql.ConnectionPool(config);
-const connection = pool
-  .connect()
-  .then(() => {
-    console.log("Đã kết nối với cơ sở dữ liệu SQL Server trên Azure...");
-  })
-  .catch((err) => {
-    console.error("Lỗi kết nối: " + err.stack);
-  });
+let config = require("./configs/dbs.info").name_database_01.config;
 
-module.exports = pool;
+async function connectToDatabase() {
+  try {
+    console.log("Connecting to the database...", new Date().toISOString());
+    await sql.connect(config);
+    console.log("Connected to the database", new Date().toISOString());
+  } catch (error) {
+    console.error("Error connecting to the database:", error);
+  }
+}
+
+module.exports = { connectToDatabase, sql };

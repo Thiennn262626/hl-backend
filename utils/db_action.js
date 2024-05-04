@@ -1,12 +1,11 @@
-const database = require("../config");
+const { sql } = require("../config");
 
 async function getImageListBySKU(productID, sku) {
   const resultImageList = [];
   if (sku.idAttributeValue1 !== null) {
     const queryImage =
       "SELECT id AS mediaID, linkString AS linkString, title AS title, description AS description FROM Media WHERE productAttributeValueID = @productAttributeValueID";
-    const imageResult = await database
-      .request()
+    const imageResult = await new sql.Request()
       .input("productAttributeValueID", sku.idAttributeValue1)
       .query(queryImage);
     if (
@@ -20,8 +19,7 @@ async function getImageListBySKU(productID, sku) {
   }
   const queryImage =
     "SELECT id AS mediaID, linkString AS linkString, title AS title, description AS description FROM Media WHERE id_product = @idProduct AND isDefault = 1";
-  const imageResult = await database
-    .request()
+  const imageResult = await new sql.Request()
     .input("idProduct", productID)
     .query(queryImage);
   resultImageList.push(imageResult.recordset[0]);
@@ -55,14 +53,12 @@ async function getAttributes(productID, sku) {
 async function processAttribute(productID, attributeValueID, sku) {
   const queryAttributeValue =
     "SELECT * FROM ProductAttributeValue WHERE id = @id";
-  const resultAttributeValue = await database
-    .request()
+  const resultAttributeValue = await new sql.Request()
     .input("id", attributeValueID)
     .query(queryAttributeValue);
 
   const queryattributes = "SELECT * FROM ProductAttribute WHERE id = @id ";
-  const attributesResult = await database
-    .request()
+  const attributesResult = await new sql.Request()
     .input("id", resultAttributeValue.recordset[0].productAttributeID)
     .query(queryattributes);
 

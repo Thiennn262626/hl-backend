@@ -4,14 +4,11 @@ const multer = require("multer");
 const router = express.Router();
 
 const mail_util = require("../../utils/mail");
-const database = require("../../config");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 const firebase = require("../../firebase");
-const sql = require("mssql");
-const e = require("express");
 
-require("dotenv").config();
+const { sql } = require("../../config");
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage }).single("file_cover");
@@ -63,8 +60,7 @@ async function getProfile(idAccount) {
     WHERE [User].id_account = @idAccount
     ORDER BY Email.isDefault DESC, Phone.isDefault DESC
     `;
-    const result = await database
-      .request()
+    const result = await new sql.Request()
       .input("idAccount", idAccount)
       .query(query);
 
@@ -149,15 +145,13 @@ router.post(
       }
       const query =
         "UPDATE [User] SET contactFullName = @contactFullName OUTPUT inserted.id, inserted.slogan, inserted.gender, inserted.pID, inserted.createdDate WHERE id_account = @idAccount";
-      const result = await database
-        .request()
+      const result = await new sql.Request()
         .input("contactFullName", contactFullName)
         .input("idAccount", request.userData.uuid)
         .query(query);
 
       const queryAccount = "SELECT * FROM Account WHERE id = @idAccount";
-      const resultAccount = await database
-        .request()
+      const resultAccount = await new sql.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryAccount);
 
@@ -236,8 +230,7 @@ router.post(
             image = image + publicUrl;
             const queryUser =
               "UPDATE [User] SET userCover = @image WHERE id_account = @idAccount";
-            const userResult = await database
-              .request()
+            const userResult = await new sql.Request()
               .input("idAccount", request.userData.uuid)
               .input("image", image)
               .query(queryUser);
@@ -302,8 +295,7 @@ router.post(
             image = image + publicUrl;
             const queryUser =
               "UPDATE [User] SET userAvatar = @image WHERE id_account = @idAccount";
-            const userResult = await database
-              .request()
+            const userResult = await new sql.Request()
               .input("idAccount", request.userData.uuid)
               .input("image", image)
               .query(queryUser);
@@ -334,8 +326,9 @@ router.post(
   checkAuth,
   checkRole,
   async (request, response) => {
-    let transaction = new sql.Transaction(database);
     try {
+      // await sql.connect();
+      let transaction = new sql.Transaction();
       const emailAddress = request.body.emailAddress;
       const createdDate = new Date();
       await transaction
@@ -426,8 +419,7 @@ async function createOtpEmail(otp, createdDate, emailID, transaction) {
 async function createEmail(idAccount, emailAddress, isDefault, transaction) {
   try {
     const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await database
-      .request()
+    const userResult = await new sql.Request()
       .input("idAccount", idAccount)
       .query(queryUser);
     query = `
@@ -521,8 +513,7 @@ router.post(
       const emailID = request.body.emailID;
 
       const queryEmail = "SELECT * FROM Email WHERE id = @emailID";
-      const resultEmail = await database
-        .request()
+      const resultEmail = await new sql.Request()
         .input("emailID", emailID)
         .query(queryEmail);
 
@@ -533,8 +524,7 @@ router.post(
         });
       } else {
         const queryDeleteEmail = "DELETE FROM Email WHERE id = @idEmail";
-        const resultQueryDeleteEmail = await database
-          .request()
+        const resultQueryDeleteEmail = await new sql.Request()
           .input("idEmail", emailID)
           .query(queryDeleteEmail);
         response.status(200).json({
@@ -559,8 +549,7 @@ router.post(
     try {
       const emailID = request.body.emailID;
       const queryEmail = "SELECT * FROM Email WHERE id = @emailID";
-      const resultEmail = await database
-        .request()
+      const resultEmail = await new sql.Request()
         .input("emailID", emailID)
         .query(queryEmail);
 
@@ -574,8 +563,7 @@ router.post(
         const expiredDate = new Date(createdDate.getTime() + 35000);
         const queryOtp =
           "INSERT INTO OtpEmail(value, createdDate, idEmail) OUTPUT inserted.id VALUES (@value, @createdDate, @idEmail)";
-        const otpResult = await database
-          .request()
+        const otpResult = await new sql.Request()
           .input("value", otp)
           .input("createdDate", createdDate)
           .input("idEmail", emailID)
@@ -630,8 +618,7 @@ router.post(
       LEFT JOIN OtpEmail ON Email.id = OtpEmail.idEmail
       WHERE [User].id_account = @idAccount AND Email.id = @emailID AND OtpEmail.id = @idOtpEmail
       `;
-      const result = await database
-        .request()
+      const result = await new sql.Request()
         .input("emailID", emailID)
         .input("idOtpEmail", uuid)
         .input("idAccount", request.userData.uuid)
@@ -648,8 +635,7 @@ router.post(
           if (result.recordset[0].value === parseInt(otp)) {
             const queryAccount =
               "UPDATE Email SET isVerify  = 1 OUTPUT inserted.emailAddress WHERE id = @idEmail";
-            const accountResult = await database
-              .request()
+            const accountResult = await new sql.Request()
               .input("idEmail", emailID)
               .query(queryAccount);
 
@@ -689,24 +675,21 @@ router.post(
       const isDefault = request.body.isDefault;
 
       const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await database
-        .request()
+      const userResult = await new sql.Request()
         .input("idAccount", request.userData.uuid)
         .query(queryUser);
 
       if (isDefault === 1) {
         const queryPhoneDefault =
           "SELECT * FROM Phone WHERE idUser = @idUser AND isDefault = 1";
-        const resultPhoneDefault = await database
-          .request()
+        const resultPhoneDefault = await new sql.Request()
           .input("idUser", userResult.recordset[0].id)
           .query(queryPhoneDefault);
 
         if (resultPhoneDefault.recordset.length !== 0) {
           const updatePhoneDefault =
             "UPDATE Phone SET isDefault = 0 WHERE id = @idPhone";
-          const resultUpdatePhoneDefault = await database
-            .request()
+          const resultUpdatePhoneDefault = await new sql.Request()
             .input("idPhone", resultPhoneDefault.recordset[0].id)
             .query(updatePhoneDefault);
         }
@@ -715,8 +698,7 @@ router.post(
 
         const queryPhone =
           "INSERT INTO Phone(phoneNo, phoneLabel, isDefault, isVerify, idUser) OUTPUT inserted.id VALUES (@phoneNo, @phoneLabel, @isDefault, 0, @idUser)";
-        const resultPhone = await database
-          .request()
+        const resultPhone = await new sql.Request()
           .input("phoneNo", phoneNo)
           .input("phoneLabel", phoneLabel)
           .input("isDefault", isDefault)
@@ -727,8 +709,7 @@ router.post(
 
         const queryOtp =
           "INSERT INTO OtpPhone(value, createdDate, idPhone) OUTPUT inserted.id VALUES (@value, @createdDate, @idPhone)";
-        const otpResult = await database
-          .request()
+        const otpResult = await new sql.Request()
           .input("value", otp)
           .input("createdDate", createdDate)
           .input("idPhone", resultPhone.recordset[0].id)
@@ -753,8 +734,7 @@ router.post(
 
         const queryPhone =
           "INSERT INTO Phone(phoneNo, phoneLabel, isDefault, isVerify, idUser) OUTPUT inserted.id VALUES (@phoneNo, @phoneLabel, @isDefault, 0, @idUser)";
-        const resultPhone = await database
-          .request()
+        const resultPhone = await new sql.Request()
           .input("phoneNo", phoneNo)
           .input("phoneLabel", phoneLabel)
           .input("isDefault", isDefault)
@@ -765,8 +745,7 @@ router.post(
 
         const queryOtp =
           "INSERT INTO OtpPhone(value, createdDate, idPhone) OUTPUT inserted.id VALUES (@value, @createdDate, @idPhone)";
-        const otpResult = await database
-          .request()
+        const otpResult = await new sql.Request()
           .input("value", otp)
           .input("createdDate", createdDate)
           .input("idPhone", resultPhone.recordset[0].id)
@@ -804,8 +783,7 @@ router.post(
       const phoneID = request.body.phoneID;
 
       const queryPhone = "SELECT * FROM Phone WHERE id = @phoneID";
-      const resultPhone = await database
-        .request()
+      const resultPhone = await new sql.Request()
         .input("phoneID", phoneID)
         .query(queryPhone);
 
@@ -816,8 +794,7 @@ router.post(
         });
       } else {
         const queryDeletePhone = "DELETE FROM Phone WHERE id = @phoneID";
-        const resultQueryDeletePhone = await database
-          .request()
+        const resultQueryDeletePhone = await new sql.Request()
           .input("phoneID", phoneID)
           .query(queryDeletePhone);
         response.status(200).json({
@@ -842,8 +819,7 @@ router.post(
     try {
       const phoneID = request.body.phoneID;
       const queryPhone = "SELECT * FROM Phone WHERE id = @phoneID";
-      const resultPhone = await database
-        .request()
+      const resultPhone = await new sql.Request()
         .input("phoneID", phoneID)
         .query(queryPhone);
 
@@ -854,8 +830,7 @@ router.post(
         const expiredDate = new Date(createdDate.getTime() + 60000);
         const queryOtp =
           "INSERT INTO OtpPhone(value, createdDate, idPhone) OUTPUT inserted.id VALUES (@value, @createdDate, @idPhone)";
-        const otpResult = await database
-          .request()
+        const otpResult = await new sql.Request()
           .input("value", otp)
           .input("createdDate", createdDate)
           .input("idPhone", phoneID)
@@ -900,16 +875,14 @@ router.post(
       const otp = request.body.otp;
 
       const queryPhone = "SELECT * FROM Phone WHERE id = @phoneID";
-      const resultPhone = await database
-        .request()
+      const resultPhone = await new sql.Request()
         .input("phoneID", phoneID)
         .query(queryPhone);
 
       if (resultPhone.recordset.length !== 0) {
         const query =
           "SELECT * FROM OtpPhone WHERE idPhone = @idPhone AND createdDate = (SELECT MAX(createdDate) FROM OtpPhone ) AND id = @idOtpPhone";
-        const result = await database
-          .request()
+        const result = await new sql.Request()
           .input("idPhone", phoneID)
           .input("idOtpPhone", uuid)
           .query(query);
@@ -921,8 +894,7 @@ router.post(
         if (result.recordset[0].value === parseInt(otp) && expired < 60000) {
           const queryAccount =
             "UPDATE Phone SET isVerify  = 1 OUTPUT inserted.phoneNo WHERE id = @idPhone";
-          const accountResult = await database
-            .request()
+          const accountResult = await new sql.Request()
             .input("idPhone", phoneID)
             .query(queryAccount);
 
@@ -964,8 +936,7 @@ router.post(
       const isDefault = request.body.isDefault;
 
       const queryPhone = "SELECT * FROM Phone WHERE id = @phoneID";
-      const resultPhone = await database
-        .request()
+      const resultPhone = await new sql.Request()
         .input("phoneID", phoneID)
         .query(queryPhone);
 
@@ -973,31 +944,27 @@ router.post(
         if (isDefault === 1) {
           const queryUser =
             "SELECT id FROM [User] WHERE id_account = @idAccount";
-          const userResult = await database
-            .request()
+          const userResult = await new sql.Request()
             .input("idAccount", request.userData.uuid)
             .query(queryUser);
 
           const queryExistPhoneIsDefault =
             "SELECT * FROM Phone WHERE idUser = @idUser AND isDefault = 1";
-          const resultExistPhoneIsDefault = await database
-            .request()
+          const resultExistPhoneIsDefault = await new sql.Request()
             .input("idUser", userResult.recordset[0].id)
             .query(queryExistPhoneIsDefault);
 
           if (resultExistPhoneIsDefault.recordset.length !== 0) {
             const queryUpdateIsDefault =
               "UPDATE Phone SET isDefault = 0 WHERE id = @idPhone";
-            const resultUpdateIsDefault = await database
-              .request()
+            const resultUpdateIsDefault = await new sql.Request()
               .input("idPhone", resultExistPhoneIsDefault.recordset[0].id)
               .query(queryUpdateIsDefault);
           }
 
           const queryUpdatePhone =
             "UPDATE Phone SET isVerify = 0, phoneNo = @phoneNo, phoneLabel = @phoneLabel, isDefault = @isDefault WHERE id = @idPhone";
-          const resultUpdateEmail = await database
-            .request()
+          const resultUpdateEmail = await new sql.Request()
             .input("idPhone", phoneID)
             .input("phoneLabel", phoneLabel)
             .input("phoneNo", phoneNo)
@@ -1011,8 +978,7 @@ router.post(
 
           const queryOtp =
             "INSERT INTO OtpPhone(value, createdDate, idPhone) OUTPUT inserted.id VALUES (@value, @createdDate, @idPhone)";
-          const otpResult = await database
-            .request()
+          const otpResult = await new sql.Request()
             .input("value", otp)
             .input("createdDate", createdDate)
             .input("idPhone", phoneID)
@@ -1061,7 +1027,7 @@ router.post(
 //         const fullName = firstName + " " + lastName;
 //         if (!request.file){
 //             const queryUser = 'UPDATE [User] SET first_name = @firstName, last_name = @lastName, gender = @gender, dateOfBirth = @dateOfBirth, phone = @phone, address = @address WHERE id_account = @idAccount'
-//             const userResult = await database.request()
+//             const userResult = await new sql.Request()
 //                                          .input('firstName', firstName)
 //                                          .input('lastName', lastName)
 //                                          .input('gender', gender)
@@ -1102,7 +1068,7 @@ router.post(
 //             const publicUrl = signedUrls[0];
 //             image = image + publicUrl;
 //             const queryUser = 'UPDATE [User] SET first_name = @firstName, last_name = @lastName, gender = @gender, dateOfBirth = @dateOfBirth, phone = @phone, address = @address, image = @image WHERE id_account = @idAccount'
-//             const userResult = await database.request()
+//             const userResult = await new sql.Request()
 //                                      .input('firstName', firstName)
 //                                      .input('lastName', lastName)
 //                                      .input('gender', gender)
@@ -1143,7 +1109,7 @@ router.post(
 // router.delete('/delete-profile', checkAuth, checkRole, async (request, response) => {
 //     try{
 //         const queryUser = 'DELETE FROM [User] WHERE id_account = @idAccount'
-//         const userResult = await database.request()
+//         const userResult = await new sql.Request()
 //                                         .input('idAccount', request.userData.uuid)
 //                                         .query(queryUser);
 
