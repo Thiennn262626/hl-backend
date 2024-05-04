@@ -615,8 +615,9 @@ router.get("/get-list-hot", async (request, response) => {
 
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
-      await sql.connect();
       console.log("time0: ", new Date().toISOString());
+      await sql.connect();
+      console.log("time1: ", new Date().toISOString());
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
