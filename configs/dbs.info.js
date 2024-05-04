@@ -8,7 +8,11 @@ module.exports = {
       password: process.env.AZURE_SQL_SERVER_PASSWORD,
       server: process.env.AZURE_SQL_SERVER_HOST_NAME,
       database: process.env.AZURE_SQL_SERVER_DATABASE_NAME,
+      port: 1433,
       options: {
+        trustedConnection: true,
+        enableArithAbort: true,
+        instancename: "SQLEXPRESS",
         encrypt: true,
         trustServerCertificate: true,
       },
