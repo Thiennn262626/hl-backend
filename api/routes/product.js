@@ -986,7 +986,7 @@ router.get("/get-product-attribute", async (request, response) => {
       });
       return;
     }
-    const responseData = await RedisService.getJson(
+    let responseData = await RedisService.getJson(
       "product_attribute_" + productID
     );
     if (!responseData) {
@@ -1065,7 +1065,7 @@ router.get("/get-product-sku-by-product-id", async (request, response) => {
       return;
     }
 
-    const skuss = await RedisService.getJson("product_sku_" + productID);
+    let skuss = await RedisService.getJson("product_sku_" + productID);
     if (!skuss) {
       await sql.connect();
       skuss = await processSkus(productID);
