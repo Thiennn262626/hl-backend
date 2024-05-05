@@ -49,43 +49,24 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
     ) {
       return response.status(400).json({ error: "Invalid rating value" });
     }
+    if (length(images_id) > 5) {
+      return response
+        .status(400)
+        .json({ error: "length of images_id must be less than 5" });
+    }
     await transaction
       .begin()
       .then(async () => {
-        const query = `
-          INSERT INTO Rating(order_item_id, comment, rating_star, product_quality, seller_service, delivery_service, driver_service, user_id, created_date)
-          OUTPUT inserted.id AS rating_id
-          VALUES(@order_item_id, @comment, @rating_star, @product_quality, @seller_service, @delivery_service, @driver_service, @user_id, @created_date)
-        `;
-        const result = await transaction
-          .request()
-          .input("order_item_id", order_item_id)
-          .input("comment", comment)
-          .input("rating_star", detailed_rating.product_quality)
-          .input("product_quality", detailed_rating.product_quality)
-          .input("seller_service", detailed_rating.seller_service)
-          .input("delivery_service", detailed_rating.delivery_service)
-          .input("driver_service", detailed_rating.driver_service)
-          .input("user_id", request.userData.userId)
-          .input("created_date", new Date())
-          .query(query);
-        const rating_id = result.recordset[0].rating_id;
-
+        const rating_id = await addRating(
+          transaction,
+          order_item_id,
+          comment,
+          detailed_rating,
+          request.userData.userId
+        );
         if (images_id) {
-          const query = `
-            INSERT INTO RatingMedia(rating_id, media_id, created_date)
-            VALUES(@rating_id, @media_id, @created_date)
-          `;
-          for (const image of images_id) {
-            await transaction
-              .request()
-              .input("rating_id", rating_id)
-              .input("media_id", image)
-              .input("created_date", new Date())
-              .query(query);
-          }
+          await insertIdRatingMedia(transaction, rating_id, images_id);
         }
-
         await transaction.commit();
         response.status(201).json({
           status: 200,
@@ -118,6 +99,56 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
   }
 });
 
+async function addRating(
+  transaction,
+  order_item_id,
+  comment,
+  detailed_rating,
+  user_id
+) {
+  try {
+    const query = `
+    INSERT INTO Rating(order_item_id, comment, rating_star, product_quality, seller_service, delivery_service, driver_service, user_id, created_date)
+    OUTPUT inserted.id AS rating_id
+    VALUES(@order_item_id, @comment, @rating_star, @product_quality, @seller_service, @delivery_service, @driver_service, @user_id, @created_date)
+  `;
+    const result = await transaction
+      .request()
+      .input("order_item_id", order_item_id)
+      .input("comment", comment)
+      .input("rating_star", detailed_rating.product_quality)
+      .input("product_quality", detailed_rating.product_quality)
+      .input("seller_service", detailed_rating.seller_service)
+      .input("delivery_service", detailed_rating.delivery_service)
+      .input("driver_service", detailed_rating.driver_service)
+      .input("user_id", user_id)
+      .input("created_date", new Date())
+      .query(query);
+    return result.recordset[0].rating_id;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function insertIdRatingMedia(transaction, rating_id, images_id) {
+  try {
+    const query = `
+    INSERT INTO RatingMedia(rating_id, media_id, created_date)
+    VALUES(@rating_id, @media_id, @created_date)
+  `;
+    for (const image of images_id) {
+      await transaction
+        .request()
+        .input("rating_id", rating_id)
+        .input("media_id", image)
+        .input("created_date", new Date())
+        .query(query);
+    }
+  } catch (error) {
+    throw error;
+  }
+}
+
 // update = {
 //   rating_id: 1,
 //   comment: "Good",
@@ -137,7 +168,143 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
 //   ],
 // };
 // sua danh gia san pham
-router.put("/update", checkAuth, checkRole, async (request, response) => {});
+router.put("/update", checkAuth, checkRole, async (request, response) => {
+  let transaction = new sql.Transaction();
+  try {
+    const { rating_id, comment, detailed_rating, images_id } = request.body;
+
+    // Kiểm tra dữ liệu đầu vào
+    if (!rating_id || !detailed_rating) {
+      return response.status(400).json({ error: "Missing fields" });
+    }
+    if (
+      Object.values(detailed_rating).some(
+        (value) => value < 1 || value > 5 || typeof value !== "number"
+      )
+    ) {
+      return response.status(400).json({ error: "Invalid rating value" });
+    }
+    if (length(images_id) > 5) {
+      return response
+        .status(400)
+        .json({ error: "length of images_id must be less than 5" });
+    }
+    await transaction
+      .begin()
+      .then(async () => {
+        const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
+        const userResult = await transaction
+          .request()
+          .input("idAccount", request.userData.uuid)
+          .query(queryUser);
+        const userid = userResult.recordset[0].id;
+
+        await checkRating(transaction, rating_id, userid);
+        await updateRating(
+          transaction,
+          rating_id,
+          comment,
+          detailed_rating,
+          request.userData.userId
+        );
+        if (images_id) {
+          await deleteRatingMedia(transaction, rating_id);
+          await insertIdRatingMedia(transaction, rating_id, images_id);
+        }
+        await transaction.commit();
+        response.status(201).json({
+          status: 200,
+          message: "Update Rating Success",
+          result: {
+            RatingID: rating_id,
+          },
+        });
+      })
+      .catch(async (err) => {
+        await transaction.rollback();
+        throw err;
+      });
+    return {};
+  } catch (error) {
+    console.log(error);
+    if (error.code === "EREQUEST") {
+      return response.status(500).json({
+        message: "Database error",
+      });
+    }
+    if (error.code === "EABORT") {
+      return response.status(500).json({
+        message: "Invalid input data",
+      });
+    }
+    response.status(500).json({
+      message: error,
+    });
+  }
+});
+
+async function checkRating(transaction, rating_id, user_id) {
+  try {
+    const query = `
+    SELECT id
+    FROM Rating
+    WHERE id = @rating_id AND user_id = @user_id
+  `;
+    const result = await transaction
+      .request()
+      .input("rating_id", rating_id)
+      .input("user_id", user_id)
+      .query(query);
+    if (result.recordset.length === 0) {
+      throw "Rating not found";
+    }
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function updateRating(
+  transaction,
+  rating_id,
+  comment,
+  detailed_rating,
+  user_id
+) {
+  try {
+    const query = `
+    UPDATE Rating
+    SET comment = @comment, rating_star = @rating_star, product_quality = @product_quality, seller_service = @seller_service, delivery_service = @delivery_service, driver_service = @driver_service, user_id = @user_id
+    WHERE id = @rating_id
+  `;
+    await transaction
+      .request()
+      .input("rating_id", rating_id)
+      .input("comment", comment)
+      .input("rating_star", detailed_rating.product_quality)
+      .input("product_quality", detailed_rating.product_quality)
+      .input("seller_service", detailed_rating.seller_service)
+      .input("delivery_service", detailed_rating.delivery_service)
+      .input("driver_service", detailed_rating.driver_service)
+      .input("user_id", user_id)
+      .query(query);
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function deleteRatingMedia(transaction, rating_id) {
+  try {
+    const query = `
+    DELETE FROM RatingMedia
+    WHERE rating_id = @rating_id
+  `;
+    await transaction.request().input("rating_id", rating_id).query(query);
+  } catch (error) {
+    throw error;
+  }
+}
+
+// xoa danh gia san pham
 
 router.get("/get_ratings_by_product", async (request, response) => {
   try {
