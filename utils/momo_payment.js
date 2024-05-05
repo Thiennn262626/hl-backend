@@ -187,7 +187,10 @@ async function refundOrderPayment(amount, transId, orderIdOrder, requestId) {
       responseTime: response.data.responseTime,
       signature: response.data.signature,
     };
-    console.log("refundOrderPayment success", resultData);
+    console.log(
+      "https://test-payment.momo.vn/v2/gateway/api/refund: resultData = ",
+      resultData
+    );
     return resultData;
   } catch (error) {
     throw error;

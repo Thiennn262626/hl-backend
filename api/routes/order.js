@@ -1045,7 +1045,7 @@ router.post(
                       now,
                       orderStatus
                     );
-                    refundOrderPayment(
+                    await refundOrderPayment(
                       amount,
                       transId,
                       orderIdOrder,
