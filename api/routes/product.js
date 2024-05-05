@@ -171,7 +171,7 @@ router.get("/get-detail", async (request, response) => {
 
     let result = await RedisService.getJson(`product_${idProduct}`);
     if (!result) {
-      await sql.connect();
+      //;
       result = await getProductDetail(idProduct);
       RedisService.setJson(`product_${idProduct}`, result);
       RedisService.expire(`product_${idProduct}`, 1001);
@@ -261,7 +261,7 @@ router.get("/get-list-best-seller", async (request, response) => {
 
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
-      await sql.connect();
+      //;
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
@@ -376,7 +376,7 @@ router.get(
 
       let resultArray = await RedisService.getJson("listProduct");
       if (!resultArray) {
-        await sql.connect();
+        //;
         resultArray = await getListProduct();
         RedisService.setJson("listProduct", resultArray);
         RedisService.expire("listProduct", 3000);
@@ -511,7 +511,7 @@ router.get("/get-list-new", async (request, response) => {
 
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
-      await sql.connect();
+      //;
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
@@ -616,7 +616,7 @@ router.get("/get-list-hot", async (request, response) => {
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
       console.log("time0: ", new Date().toISOString());
-      await sql.connect();
+      //;
       console.log("time1: ", new Date().toISOString());
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
@@ -736,7 +736,7 @@ router.get("/get-list-good-price-today", async (request, response) => {
 
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
-      await sql.connect();
+      //;
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
@@ -910,7 +910,7 @@ router.get("/get-list-same-category", async (request, response) => {
 
     let resultArray = await RedisService.getJson("listProduct");
     if (!resultArray) {
-      await sql.connect();
+      //;
       resultArray = await getListProduct();
       RedisService.setJson("listProduct", resultArray);
       RedisService.expire("listProduct", 3000);
@@ -991,7 +991,7 @@ router.get("/get-product-attribute", async (request, response) => {
       "product_attribute_" + productID
     );
     if (!responseData) {
-      await sql.connect();
+      //;
       responseData = await getProductAttributes(productID);
       RedisService.setJson("product_attribute_" + productID, responseData);
       RedisService.expire("product_attribute_" + productID, 3000);
@@ -1068,7 +1068,7 @@ router.get("/get-product-sku-by-product-id", async (request, response) => {
 
     let skuss = await RedisService.getJson("product_sku_" + productID);
     if (!skuss) {
-      await sql.connect();
+      //;
       skuss = await processSkus(productID);
       RedisService.setJson("product_sku_" + productID, skuss);
       RedisService.expire("product_sku_" + productID, 3000);

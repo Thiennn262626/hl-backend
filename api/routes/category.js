@@ -12,7 +12,6 @@ router.get("/get-list", async (request, response) => {
 
     let resultArray = await RedisService.getJson("ListCategory");
     if (!resultArray) {
-      await sql.connect();
       resultArray = await getListCategory();
       await RedisService.setJson("ListCategory", resultArray);
       await RedisService.expire("ListCategory", 3000);
@@ -145,7 +144,6 @@ router.get("/detail", async (request, response) => {
       `ListProductByCategory_${idCategory}`
     );
     if (!resultArray) {
-      await sql.connect();
       resultArray = await getListProductByCategory(idCategory);
       await RedisService.setJson(
         `ListProductByCategory_${idCategory}`,

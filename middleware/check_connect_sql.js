@@ -12,7 +12,6 @@ async function checkConnectedSQL(request, response, next) {
   } catch (error) {
     console.log("error connecting to the database:", error);
     console.log("Reconnecting to the database...", new Date().toISOString());
-    await sql.connect();
     console.log("Reconnected", new Date().toISOString());
     next();
   }
