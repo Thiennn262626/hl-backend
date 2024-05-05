@@ -327,7 +327,7 @@ router.post(
   checkRole,
   async (request, response) => {
     try {
-      // await sql.connect();
+      // ;
       let transaction = new sql.Transaction();
       const emailAddress = request.body.emailAddress;
       const createdDate = new Date();
