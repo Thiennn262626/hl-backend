@@ -461,16 +461,18 @@ router.get(
       res = await recommendByUser(userid);
       if (res.result) {
         id_list = res.result;
-        resultArray = resultArray.filter((item) =>
+        filteredResult = filteredResult.filter((item) =>
           id_list.includes(item.productID)
         );
       }
       // Phân trang
       const paginatedResult = filteredResult.slice(offset, offset + limit);
 
-      response
-        .status(200)
-        .json({ result: paginatedResult, total: resultArray.length });
+      response.status(200).json({
+        result: paginatedResult,
+        total: filteredResult.length,
+        recommended: res.result,
+      });
     } catch (error) {
       console.error(error);
       response.status(500).json({ errorCode: error });
