@@ -14,66 +14,48 @@ const upload = multer({
 
 module.exports = router;
 
-// rating = {
-//   order_item_id: 1,
-//   comment: "Good",
-//   detailed_rating: {
-//     product_quality: 5,
-//     seller_service: 5,
-//     delivery_service: 5,
-//     driver_service: 5,
-//   },
-//   images_id: [
-//     {
-//       image_id: 1,
-//     },
-//     {
-//       image_id: 2,
-//     },
-//   ],
-// };
-// danh gia san pham
 router.post("/create", checkAuth, checkRole, async (request, response) => {
   let transaction = new sql.Transaction();
   try {
-    const { order_item_id, comment, detailed_rating, images_id } = request.body;
+    const { order_id, order_items } = request.body;
 
-    // Kiểm tra dữ liệu đầu vào
-    if (!order_item_id || !detailed_rating) {
-      return response.status(400).json({ error: "Missing fields" });
-    }
-    if (
-      Object.values(detailed_rating).some(
-        (value) => value < 1 || value > 5 || typeof value !== "number"
-      )
-    ) {
-      return response.status(400).json({ error: "Invalid rating value" });
-    }
-    if (length(images_id) > 5) {
-      return response
-        .status(400)
-        .json({ error: "length of images_id must be less than 5" });
-    }
     await transaction
       .begin()
       .then(async () => {
-        const rating_id = await addRating(
+        const userid = await checkOrderExistAndGetUserid(
           transaction,
-          order_item_id,
-          comment,
-          detailed_rating,
-          request.userData.userId
+          order_id,
+          request.userData.uuid
         );
-        if (images_id) {
-          await insertIdRatingMedia(transaction, rating_id, images_id);
+        const orderDetail = await getOrderDetailByID(transaction, order_id);
+        // Kiểm tra dữ liệu đầu vào
+        const new_order_items = await checkValidOrder(orderDetail, order_items);
+        //kiểm tra xem đã đánh giá chưa
+        await checkRatingExist(transaction, order_id, userid);
+        console.log("new_order_items: ", new_order_items);
+        for (const order_item of new_order_items) {
+          const rating_id = await addRating(
+            transaction,
+            order_item.order_item_id,
+            order_item.comment,
+            order_item.detailed_rating,
+            order_item.product_sku_option,
+            order_item.productSKUID,
+            userid
+          );
+          if (order_item.images_id && order_item.images_id.length > 0) {
+            await insertIdRatingMedia(
+              transaction,
+              rating_id,
+              order_item.images_id
+            );
+          }
+          console.log("rating_id: ", rating_id);
         }
         await transaction.commit();
         response.status(201).json({
           status: 200,
           message: "Create Order Success",
-          result: {
-            RatingID: rating_id,
-          },
         });
       })
       .catch(async (err) => {
@@ -99,30 +81,202 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
   }
 });
 
+async function checkValidOrder(order_detail, order_items) {
+  for (const order_item of order_items) {
+    if (!order_item.order_item_id) {
+      throw "Missing order_item_id";
+    }
+    if (!order_item.detailed_rating) {
+      throw "Missing detailed_rating";
+    }
+    for (const key in order_item.detailed_rating) {
+      if (typeof order_item.detailed_rating[key] === null) continue;
+      if (typeof order_item.detailed_rating[key] !== "number") {
+        order_item.detailed_rating[key] = 0;
+      }
+    }
+    if (
+      Object.values(order_item.detailed_rating).some(
+        (value) => value < 0 || value > 5
+      )
+    ) {
+      throw "Invalid rating value";
+    }
+    for (const key in order_item.detailed_rating) {
+      if (order_item.detailed_rating[key] === 0) {
+        order_item.detailed_rating[key] = null;
+      }
+    }
+    if (order_item.images_id.length > 5) {
+      throw "length of images_id must be less than 5";
+    }
+  }
+  index = 0;
+  for (const order_item of order_detail.dataOrderItem) {
+    const orderItem = order_items.find(
+      (item) => item.order_item_id == order_item.orderItemID
+    );
+    if (orderItem) {
+      product_sku_option = order_item.attribute.forEach((item, index) => {
+        if (index > 0) {
+          product_sku_option += ",";
+        }
+        return item.locAttributeValueName;
+      });
+
+      order_items[index].product_sku_option =
+        order_item.attribute[0].locAttributeValueName;
+      order_items[index].productSKUID = order_item.productSKUID;
+    }
+    if (!orderItem) {
+      throw "Order item not found";
+    }
+    index++;
+  }
+  return order_items;
+}
+async function checkOrderExistAndGetUserid(transaction, orderID, idAccount) {
+  try {
+    const query = `
+    SELECT
+    u.id AS userid
+    FROM [User] AS u
+    JOIN [Order] AS o ON u.id = o.idUser
+    WHERE u.id_account = @idAccount AND o.id = @orderID
+    `;
+    const result = await transaction
+      .request()
+      .input("idAccount", idAccount)
+      .input("orderID", orderID)
+      .query(query);
+    if (result.recordset.length === 0) {
+      throw "Error in checkOrderExist";
+    }
+    return result.recordset[0].userid;
+  } catch (error) {
+    throw "Error in checkOrderExist";
+  }
+}
+
+async function checkRatingExist(transaction, orderID, id_user) {
+  try {
+    const query = `
+    SELECT r.id
+    FROM [Order] AS o
+    JOIN Order_item AS oi ON o.id = oi.orderId
+    JOIN Rating AS r ON oi.id = r.order_item_id
+    WHERE o.id = @orderID AND r.id_user = @id_user
+  `;
+    const result = await transaction
+      .request()
+      .input("orderID", orderID)
+      .input("id_user", id_user)
+      .query(query);
+    console.log("result.recordset: ", result.recordset);
+    if (result.recordset.length > 0) {
+      throw "Rating already exist";
+    }
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getOrderDetailByID(transaction, orderID) {
+  try {
+    const query = `
+    SELECT
+    o.receiverAddress,
+    o.id AS orderID,
+    o.orderCode,
+    o.paymentMethod,
+    o.orderStatus,
+    o.createdDate AS dateCreateOrder,
+    o.orderShippingFee,
+    po.finish_pay AS finishPay,
+    oi.orderItemJsonToString AS dataOrderItem,
+    po.amount AS totalOrder,
+    ot.actionDate AS dateOrderStatus
+    FROM [Order] AS o
+    JOIN Order_item AS oi ON o.id = oi.orderId
+		LEFT JOIN Payment_order AS po ON po.orderId = o.id
+    LEFT JOIN OrderTracking AS ot ON o.id = ot.orderId
+    WHERE o.id = @orderID AND ot.orderStatus = (
+                              SELECT MAX(ot_sub.orderStatus)
+                              FROM OrderTracking AS ot_sub
+                              WHERE ot_sub.orderId = o.id
+                              )
+    ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC
+    `;
+    const result = await transaction
+      .request()
+      .input("orderID", orderID)
+      .query(query);
+
+    const resultMap = {};
+
+    result.recordset.forEach((item) => {
+      const {
+        receiverAddress,
+        orderID,
+        dataOrderItem,
+        orderShippingFee,
+        ...rest
+      } = item;
+
+      // Chuyển đổi chuỗi JSON thành đối tượng JSON
+      const parsedOrderShippingFee = JSON.parse(orderShippingFee);
+
+      if (resultMap[orderID]) {
+        resultMap[orderID].dataOrderItem.push(JSON.parse(dataOrderItem));
+      } else {
+        resultMap[orderID] = {
+          receiverAddresse: JSON.parse(receiverAddress),
+          orderID,
+          dataOrderItem: [JSON.parse(dataOrderItem)],
+          orderShippingFee: parsedOrderShippingFee,
+          orderCode: item.orderCode,
+          paymentMethod: item.paymentMethod,
+          orderStatus: item.orderStatus,
+          finishPay: item.finishPay,
+          totalOrder: item.totalOrder,
+          dateCreateOrder: item.dateCreateOrder,
+          dateOrderStatus: item.dateOrderStatus,
+        };
+      }
+    });
+    const resultArray = Object.values(resultMap);
+    return resultArray[0];
+  } catch (error) {
+    throw "Error in getOrderDetail";
+  }
+}
 async function addRating(
   transaction,
   order_item_id,
   comment,
   detailed_rating,
-  user_id
+  product_sku_option,
+  productSKUID,
+  id_user
 ) {
   try {
     const query = `
-    INSERT INTO Rating(order_item_id, comment, rating_star, product_quality, seller_service, delivery_service, driver_service, user_id, created_date)
+    INSERT INTO Rating(order_item_id, comment, product_quality, seller_service, delivery_service, driver_service, id_user, created_date, product_sku_option, product_sku_id)
     OUTPUT inserted.id AS rating_id
-    VALUES(@order_item_id, @comment, @rating_star, @product_quality, @seller_service, @delivery_service, @driver_service, @user_id, @created_date)
+    VALUES(@order_item_id, @comment, @product_quality, @seller_service, @delivery_service, @driver_service, @id_user, @created_date, @product_sku_option, @productSKUID)
   `;
     const result = await transaction
       .request()
       .input("order_item_id", order_item_id)
       .input("comment", comment)
-      .input("rating_star", detailed_rating.product_quality)
       .input("product_quality", detailed_rating.product_quality)
       .input("seller_service", detailed_rating.seller_service)
       .input("delivery_service", detailed_rating.delivery_service)
       .input("driver_service", detailed_rating.driver_service)
-      .input("user_id", user_id)
+      .input("id_user", id_user)
       .input("created_date", new Date())
+      .input("product_sku_option", product_sku_option)
+      .input("productSKUID", productSKUID)
       .query(query);
     return result.recordset[0].rating_id;
   } catch (error) {
@@ -130,13 +284,13 @@ async function addRating(
   }
 }
 
-async function insertIdRatingMedia(transaction, rating_id, images_id) {
+async function insertIdRatingMedia(transaction, rating_id, images_ids) {
   try {
     const query = `
     INSERT INTO RatingMedia(rating_id, media_id, created_date)
     VALUES(@rating_id, @media_id, @created_date)
   `;
-    for (const image of images_id) {
+    for (const image of images_ids) {
       await transaction
         .request()
         .input("rating_id", rating_id)
@@ -168,6 +322,7 @@ async function insertIdRatingMedia(transaction, rating_id, images_id) {
 //   ],
 // };
 // sua danh gia san pham
+// update thi update tung cai
 router.put("/update", checkAuth, checkRole, async (request, response) => {
   let transaction = new sql.Transaction();
   try {
@@ -243,17 +398,17 @@ router.put("/update", checkAuth, checkRole, async (request, response) => {
   }
 });
 
-async function checkRating(transaction, rating_id, user_id) {
+async function checkRating(transaction, rating_id, id_user) {
   try {
     const query = `
     SELECT id
     FROM Rating
-    WHERE id = @rating_id AND user_id = @user_id
+    WHERE id = @rating_id AND id_user = @id_user
   `;
     const result = await transaction
       .request()
       .input("rating_id", rating_id)
-      .input("user_id", user_id)
+      .input("id_user", id_user)
       .query(query);
     if (result.recordset.length === 0) {
       throw "Rating not found";
@@ -268,24 +423,23 @@ async function updateRating(
   rating_id,
   comment,
   detailed_rating,
-  user_id
+  id_user
 ) {
   try {
     const query = `
     UPDATE Rating
-    SET comment = @comment, rating_star = @rating_star, product_quality = @product_quality, seller_service = @seller_service, delivery_service = @delivery_service, driver_service = @driver_service, user_id = @user_id
+    SET comment = @comment, product_quality = @product_quality, seller_service = @seller_service, delivery_service = @delivery_service, driver_service = @driver_service, id_user = @id_user
     WHERE id = @rating_id
   `;
     await transaction
       .request()
       .input("rating_id", rating_id)
       .input("comment", comment)
-      .input("rating_star", detailed_rating.product_quality)
       .input("product_quality", detailed_rating.product_quality)
       .input("seller_service", detailed_rating.seller_service)
       .input("delivery_service", detailed_rating.delivery_service)
       .input("driver_service", detailed_rating.driver_service)
-      .input("user_id", user_id)
+      .input("id_user", id_user)
       .query(query);
   } catch (error) {
     throw error;
@@ -458,7 +612,7 @@ router.get("/get_ratings_by_product", async (request, response) => {
 });
 
 router.get(
-  "/get_ratings_by_user",
+  "/get-ratings-by-user",
   checkAuth,
   checkRole,
   async (request, response) => {
@@ -473,7 +627,7 @@ router.get(
       const type = parseInt(request.query.type) || 0; // 0: all, 1: 1 star, 2: 2 star, 3: 3 star, 4: 4 star, 5: 5 star
       const filter = parseInt(request.query.filter) || 0; // 0: all, 1: with context, 2: with image
       if (!userid) {
-        throw "Missing user_id";
+        throw "Missing id_user";
       }
       query = `
       SELECT
@@ -496,13 +650,12 @@ router.get(
       r.comment_reply AS comment_reply,
       r.userid_reply AS userid_reply,
       r.created_date_reply AS ctime_reply
-      FROM Product AS p
-      JOIN ProductSku AS ps ON p.id = ps.idProduct
-      JOIN Rating AS r ON ps.id = r.product_sku_id
+      FROM [User] AS u
+      JOIN Rating AS r ON u.id = r.id_user
+      JOIN ProductSku AS ps ON r.product_sku_id = ps.id
+      JOIN Product AS p ON ps.idProduct = p.id
       LEFT JOIN RatingMedia AS rm ON r.id = rm.id_rating
-      JOIN [User] AS u ON r.id_user = u.id
       WHERE u.id = @userid
-      ORDER BY r.created_date DESC
       `;
       const result = await new sql.Request()
         .input("userid", userid)
@@ -1165,7 +1318,7 @@ router.post(
 //   };
 // }
 
-// const db_action = require("../../utils/db_action");
+const db_action = require("../../utils/db_action");
 
 // async function getInfoProduct(productSkuID, orderID, transaction) {
 //   try {
