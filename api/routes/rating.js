@@ -28,6 +28,7 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
           request.userData.uuid
         );
         const orderDetail = await getOrderDetailByID(transaction, order_id);
+        console.log("orderDetail: ", orderDetail);
         // Kiểm tra dữ liệu đầu vào
         const new_order_items = await checkValidOrder(orderDetail, order_items);
         //kiểm tra xem đã đánh giá chưa
@@ -245,6 +246,12 @@ async function getOrderDetailByID(transaction, orderID) {
       }
     });
     const resultArray = Object.values(resultMap);
+    if (resultArray.length === 0) {
+      throw "Order not found";
+    }
+    if (resultArray[0].orderStatus !== 4) {
+      throw "Order not finish";
+    }
     return resultArray[0];
   } catch (error) {
     throw "Error in getOrderDetail";
