@@ -14,11 +14,69 @@ const upload = multer({
 
 module.exports = router;
 
+router.post(
+  "/upload-image",
+  upload.single("file"),
+  checkAuth,
+  checkRole,
+  async (request, response) => {
+    try {
+      const uniqueFileName = Date.now() + "-" + request.file.originalname;
+      const blob = firebase.bucket.file(uniqueFileName);
+      const blobWriter = blob.createWriteStream({
+        metadata: {
+          contentType: request.file.mimetype,
+        },
+      });
+      blobWriter.on("error", (err) => {
+        response.status(500).json({
+          error: err.message,
+        });
+      });
+
+      blobWriter.on("finish", async () => {
+        try {
+          const signedUrls = await blob.getSignedUrl({
+            action: "read",
+            expires: "03-01-2030",
+          });
+          const publicUrl = signedUrls[0];
+          // const query = `
+          //   INSERT INTO RatingMedia(linkString, created_date)
+          //   OUTPUT inserted.id AS id_media
+          //   SELECT @url AS linkString, @createdDate AS created_date
+          // `;
+          // console.log("publicUrl: ", publicUrl);
+          // const result = await new sql.Request()
+          //   .input("url", publicUrl)
+          //   .input("createdDate", new Date())
+          //   .query(query);
+          response.status(201).json({
+            Message: "Upload successful!",
+            url: publicUrl,
+          });
+        } catch (err) {
+          console.log(err);
+          response.status(500).json({
+            error: err,
+          });
+        }
+      });
+
+      blobWriter.end(request.file.buffer);
+    } catch (error) {
+      console.log(error);
+      response.status(500).json({
+        error: "Internal Server Error",
+      });
+    }
+  }
+);
+
 router.post("/create", checkAuth, checkRole, async (request, response) => {
   let transaction = new sql.Transaction();
   try {
     const { order_id, order_items } = request.body;
-
     await transaction
       .begin()
       .then(async () => {
@@ -28,7 +86,6 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
           request.userData.uuid
         );
         const orderDetail = await getOrderDetailByID(transaction, order_id);
-        console.log("orderDetail: ", orderDetail);
         // Kiểm tra dữ liệu đầu vào
         const new_order_items = await checkValidOrder(orderDetail, order_items);
         //kiểm tra xem đã đánh giá chưa
@@ -44,12 +101,10 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
             order_item.productSKUID,
             userid
           );
-          if (order_item.images_id && order_item.images_id.length > 0) {
-            await insertIdRatingMedia(
-              transaction,
-              rating_id,
-              order_item.images_id
-            );
+          if (order_item.images_url && order_item.images_url.length > 0) {
+            for (const image of order_item.images_url) {
+              await insertRatingMedia(transaction, rating_id, image);
+            }
           }
           console.log("rating_id: ", rating_id);
         }
@@ -81,7 +136,6 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
     });
   }
 });
-
 async function checkValidOrder(order_detail, order_items) {
   for (const order_item of order_items) {
     if (!order_item.order_item_id) {
@@ -103,13 +157,18 @@ async function checkValidOrder(order_detail, order_items) {
     ) {
       throw "Invalid rating value";
     }
+    if (order_item.detailed_rating.product_quality === 0) {
+      throw "product_quality not true or missing";
+    }
     for (const key in order_item.detailed_rating) {
       if (order_item.detailed_rating[key] === 0) {
         order_item.detailed_rating[key] = null;
       }
     }
-    if (order_item.images_id.length > 5) {
-      throw "length of images_id must be less than 5";
+    if (order_item.images_url) {
+      if (order_item.images_url.length > 5) {
+        throw "length of images_url must be less than 5";
+      }
     }
   }
   index = 0;
@@ -158,7 +217,6 @@ async function checkOrderExistAndGetUserid(transaction, orderID, idAccount) {
     throw "Error in checkOrderExist";
   }
 }
-
 async function checkRatingExist(transaction, orderID, id_user) {
   try {
     const query = `
@@ -173,7 +231,6 @@ async function checkRatingExist(transaction, orderID, id_user) {
       .input("orderID", orderID)
       .input("id_user", id_user)
       .query(query);
-    console.log("result.recordset: ", result.recordset);
     if (result.recordset.length > 0) {
       throw "Rating already exist";
     }
@@ -181,7 +238,6 @@ async function checkRatingExist(transaction, orderID, id_user) {
     throw error;
   }
 }
-
 async function getOrderDetailByID(transaction, orderID) {
   try {
     const query = `
@@ -290,89 +346,81 @@ async function addRating(
     throw error;
   }
 }
-
-async function insertIdRatingMedia(transaction, rating_id, images_ids) {
+async function insertRatingMedia(transaction, id_rating, images_url) {
   try {
     const query = `
-    INSERT INTO RatingMedia(rating_id, media_id, created_date)
-    VALUES(@rating_id, @media_id, @created_date)
+    INSERT INTO RatingMedia(id_rating, created_date, linkString)
+    VALUES(@id_rating, @created_date, @linkString)
   `;
-    for (const image of images_ids) {
-      await transaction
-        .request()
-        .input("rating_id", rating_id)
-        .input("media_id", image)
-        .input("created_date", new Date())
-        .query(query);
-    }
+    await transaction
+      .request()
+      .input("id_rating", id_rating)
+      .input("created_date", new Date())
+      .input("linkString", images_url)
+      .query(query);
   } catch (error) {
     throw error;
   }
 }
 
-// update = {
-//   rating_id: 1,
-//   comment: "Good",
-//   detailed_rating: {
-//     product_quality: 5,
-//     seller_service: 5,
-//     delivery_service: 5,
-//     driver_service: 5,
-//   },
-//   images_id: [
-//     {
-//       image_id: 1,
-//     },
-//     {
-//       image_id: 2,
-//     },
-//   ],
-// };
-// sua danh gia san pham
-// update thi update tung cai
-router.put("/update", checkAuth, checkRole, async (request, response) => {
+router.post("/update", checkAuth, checkRole, async (request, response) => {
   let transaction = new sql.Transaction();
   try {
-    const { rating_id, comment, detailed_rating, images_id } = request.body;
-
+    const { rating_id, comment, detailed_rating, images_url } = request.body;
+    const data_input = {
+      rating_id,
+      comment,
+      detailed_rating,
+      images_url,
+    };
     // Kiểm tra dữ liệu đầu vào
-    if (!rating_id || !detailed_rating) {
-      return response.status(400).json({ error: "Missing fields" });
-    }
-    if (
-      Object.values(detailed_rating).some(
-        (value) => value < 1 || value > 5 || typeof value !== "number"
-      )
-    ) {
-      return response.status(400).json({ error: "Invalid rating value" });
-    }
-    if (length(images_id) > 5) {
-      return response
-        .status(400)
-        .json({ error: "length of images_id must be less than 5" });
-    }
+    const new_data_input = checkRatingInput(data_input);
+    console.log("new_data_input: ", new_data_input);
     await transaction
       .begin()
       .then(async () => {
-        const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-        const userResult = await transaction
-          .request()
-          .input("idAccount", request.userData.uuid)
-          .query(queryUser);
-        const userid = userResult.recordset[0].id;
-
-        await checkRating(transaction, rating_id, userid);
+        const userid = await checkRatingExistAndGetUserid(
+          transaction,
+          rating_id,
+          request.userData.uuid
+        );
+        console.log("userid: ", userid);
+        const list_image = await getImages(transaction, rating_id);
+        //so sanh danh sach anh cu va moi
+        const images_url = new_data_input.images_url;
+        const images_url_old = list_image.map((item) => {
+          return item.url_image;
+        });
+        const images_url_new = images_url.map((item) => {
+          return item.url_image;
+        });
+        const images_url_delete = images_url_old.filter(
+          (item) => !images_url_new.includes(item)
+        );
+        const images_url_insert = images_url_new.filter(
+          (item) => !images_url_old.includes(item)
+        );
+        console.log("images_url_delete: ", images_url_delete);
+        console.log("images_url_insert: ", images_url_insert);
+        // xoa anh cu
+        if (images_url_delete.length > 0) {
+          for (const image of images_url_delete) {
+            await deleteRatingMedia(transaction, image);
+          }
+        }
+        // them anh moi
+        if (images_url_insert.length > 0) {
+          for (const image of images_url_insert) {
+            await insertRatingMedia(transaction, rating_id, image);
+          }
+        }
+        // update rating
         await updateRating(
           transaction,
           rating_id,
-          comment,
-          detailed_rating,
-          request.userData.userId
+          new_data_input.comment,
+          new_data_input.detailed_rating
         );
-        if (images_id) {
-          await deleteRatingMedia(transaction, rating_id);
-          await insertIdRatingMedia(transaction, rating_id, images_id);
-        }
         await transaction.commit();
         response.status(201).json({
           status: 200,
@@ -405,61 +453,125 @@ router.put("/update", checkAuth, checkRole, async (request, response) => {
   }
 });
 
-async function checkRating(transaction, rating_id, id_user) {
+function checkRatingInput(dataInput) {
+  try {
+    if (!dataInput.rating_id) {
+      throw "Missing rating_id";
+    }
+    if (!dataInput.detailed_rating) {
+      throw "Missing detailed_rating";
+    }
+    for (const key in dataInput.detailed_rating) {
+      if (typeof dataInput.detailed_rating[key] === null) continue;
+      if (typeof dataInput.detailed_rating[key] !== "number") {
+        dataInput.detailed_rating[key] = 0;
+      }
+    }
+    if (
+      Object.values(dataInput.detailed_rating).some(
+        (value) => value < 0 || value > 5
+      )
+    ) {
+      throw "Invalid rating value";
+    }
+    if (dataInput.detailed_rating.product_quality === 0) {
+      throw "product_quality not true or missing";
+    }
+    for (const key in dataInput.detailed_rating) {
+      if (dataInput.detailed_rating[key] === 0) {
+        dataInput.detailed_rating[key] = null;
+      }
+    }
+    console.log("dataInput.images_url: ", dataInput.images_url);
+    if (dataInput.images_url) {
+      if (dataInput.images_url.length > 5) {
+        throw "length of images_url must be less than 5";
+      }
+    }
+    return dataInput;
+  } catch (error) {
+    throw error;
+  }
+}
+async function checkRatingExistAndGetUserid(transaction, rating_id, idAccount) {
   try {
     const query = `
-    SELECT id
-    FROM Rating
-    WHERE id = @rating_id AND id_user = @id_user
-  `;
+    SELECT
+    u.id AS userid,
+    r.edit_date
+    FROM [User] AS u
+    JOIN Rating AS r ON u.id = r.id_user
+    WHERE u.id_account = @idAccount AND r.id = @rating_id
+    `;
     const result = await transaction
       .request()
+      .input("idAccount", idAccount)
       .input("rating_id", rating_id)
-      .input("id_user", id_user)
       .query(query);
     if (result.recordset.length === 0) {
-      throw "Rating not found";
+      throw "Error in checkRatingExistAndGetUserid";
     }
+    if (result.recordset[0].edit_date !== null) {
+      throw "Rating edited before";
+    }
+    return result.recordset[0].userid;
   } catch (error) {
     throw error;
   }
 }
 
-async function updateRating(
-  transaction,
-  rating_id,
-  comment,
-  detailed_rating,
-  id_user
-) {
+async function getImages(transaction, id_rating) {
+  try {
+    const query = `
+    SELECT linkString as url_image
+    FROM RatingMedia
+    WHERE id_rating = @id_rating
+    `;
+    const result = await transaction
+      .request()
+      .input("id_rating", id_rating)
+      .query(query);
+    console.log("result: ", result.recordset);
+    return result.recordset;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function updateRating(transaction, rating_id, comment, detailed_rating) {
   try {
     const query = `
     UPDATE Rating
-    SET comment = @comment, product_quality = @product_quality, seller_service = @seller_service, delivery_service = @delivery_service, driver_service = @driver_service, id_user = @id_user
+    SET comment = @comment,
+    product_quality = @product_quality,
+    seller_service = @seller_service,
+    delivery_service = @delivery_service,
+    driver_service = @driver_service,
+    edit_date = @edit_date
     WHERE id = @rating_id
   `;
     await transaction
       .request()
-      .input("rating_id", rating_id)
       .input("comment", comment)
       .input("product_quality", detailed_rating.product_quality)
       .input("seller_service", detailed_rating.seller_service)
       .input("delivery_service", detailed_rating.delivery_service)
       .input("driver_service", detailed_rating.driver_service)
-      .input("id_user", id_user)
+      .input("rating_id", rating_id)
+      .input("edit_date", new Date())
       .query(query);
   } catch (error) {
     throw error;
   }
 }
 
-async function deleteRatingMedia(transaction, rating_id) {
+async function deleteRatingMedia(transaction, url_image) {
   try {
     const query = `
     DELETE FROM RatingMedia
-    WHERE rating_id = @rating_id
+    WHERE linkString = @url_image
   `;
-    await transaction.request().input("rating_id", rating_id).query(query);
+    await transaction.request().input("url_image", url_image).query(query);
   } catch (error) {
     throw error;
   }
@@ -783,64 +895,6 @@ router.get(
   checkAuth,
   checkRole,
   async (request, response) => {}
-);
-
-router.post(
-  "/upload-image",
-  upload.single("file"),
-  checkAuth,
-  checkRole,
-  async (request, response) => {
-    try {
-      const uniqueFileName = Date.now() + "-" + request.file.originalname;
-      const blob = firebase.bucket.file(uniqueFileName);
-      const blobWriter = blob.createWriteStream({
-        metadata: {
-          contentType: request.file.mimetype,
-        },
-      });
-      blobWriter.on("error", (err) => {
-        response.status(500).json({
-          error: err.message,
-        });
-      });
-
-      blobWriter.on("finish", async () => {
-        try {
-          const signedUrls = await blob.getSignedUrl({
-            action: "read",
-            expires: "03-01-2030",
-          });
-          const publicUrl = signedUrls[0];
-          const query = `
-            INSERT INTO RatingMedia(linkString, created_date)
-            OUTPUT inserted.id AS id_media
-            SELECT @url AS linkString, @createdDate AS created_date
-          `;
-          const result = await new sql.Request()
-            .input("url", publicUrl)
-            .input("createdDate", new Date())
-            .query(query);
-          response.status(201).json({
-            Message: "Upload successful!",
-            url: publicUrl,
-            mediaID: result.recordset[0].id_media,
-          });
-        } catch (err) {
-          response.status(500).json({
-            error: err.message,
-          });
-        }
-      });
-
-      blobWriter.end(request.file.buffer);
-    } catch (error) {
-      console.log(error);
-      response.status(500).json({
-        error: "Internal Server Error",
-      });
-    }
-  }
 );
 
 // router.post("/import", async (request, response) => {
