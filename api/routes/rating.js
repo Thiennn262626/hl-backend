@@ -577,9 +577,7 @@ async function deleteRatingMedia(transaction, url_image) {
   }
 }
 
-// xoa danh gia san pham
-
-router.get("/get_ratings_by_product", async (request, response) => {
+router.get("/get-ratings-by-product", async (request, response) => {
   try {
     const product_id = request.query.product_id;
     const limit = parseInt(request.query.limit) || 10;
@@ -736,19 +734,11 @@ router.get(
   checkRole,
   async (request, response) => {
     try {
-      const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await new sql.Request()
-        .input("idAccount", request.userData.uuid)
-        .query(queryUser);
-      const userid = userResult.recordset[0].id;
       const limit = parseInt(request.query.limit) || 10;
       const offset = parseInt(request.query.offset) || 0;
       const type = parseInt(request.query.type) || 0; // 0: all, 1: 1 star, 2: 2 star, 3: 3 star, 4: 4 star, 5: 5 star
       const filter = parseInt(request.query.filter) || 0; // 0: all, 1: with context, 2: with image
-      if (!userid) {
-        throw "Missing id_user";
-      }
-      query = `
+      const query = `
       SELECT
       r.id AS id,
       p.id AS itemid,
@@ -774,10 +764,10 @@ router.get(
       JOIN ProductSku AS ps ON r.product_sku_id = ps.id
       JOIN Product AS p ON ps.idProduct = p.id
       LEFT JOIN RatingMedia AS rm ON r.id = rm.id_rating
-      WHERE u.id = @userid
+      WHERE u.id_account = @idAccount
       `;
       const result = await new sql.Request()
-        .input("userid", userid)
+        .input("idAccount", request.userData.uuid)
         .query(query);
       const resultMap = {};
       const rating_count = [0, 0, 0, 0, 0];
@@ -792,7 +782,7 @@ router.get(
             comment: item.comment ? item.comment : null,
             rating_star: item.product_quality ? item.product_quality : null,
             ctime: item.ctime ? item.ctime : null,
-            editable: item.editable_date ? 1 : null,
+            editable: item.editable_date ? 1 : 0,
             editable_date: item.editable_date ? item.editable_date : null,
             userid: item.userid,
             author_username: item.author_username,
@@ -891,10 +881,136 @@ router.get(
 
 // lay chi tiet danh gia san pham theo id don hang
 router.get(
-  "/get_ratings_by_order",
+  "/get-ratings-by-order",
   checkAuth,
   checkRole,
-  async (request, response) => {}
+  async (request, response) => {
+    try {
+      const order_id = request.query.order_id;
+      const query = `
+      SELECT
+      r.id AS id,
+      p.id AS itemid,
+      p.name AS name,
+      ps.id AS modelid,
+      r.comment AS comment,
+      r.product_quality AS product_quality,
+      r.seller_service AS seller_service,
+      r.delivery_service AS delivery_service,
+      r.driver_service AS driver_service,
+      r.created_date AS ctime,
+      r.edit_date AS editable_date,
+      r.product_sku_option AS model_name,
+      u.id AS userid,
+      u.contactFullName AS author_username,
+      u.userAvatar AS author_portrait,
+      rm.linkString AS image,
+      r.comment_reply AS comment_reply,
+      r.userid_reply AS userid_reply,
+      r.created_date_reply AS ctime_reply
+      FROM [User] AS u
+			JOIN [Order] AS o ON o.idUser = u.id
+			JOIN Order_item AS oi ON oi.orderId = o.id
+      JOIN Rating AS r ON r.order_item_id = oi.id 
+      JOIN ProductSku AS ps ON r.product_sku_id = ps.id
+      JOIN Product AS p ON ps.idProduct = p.id
+      LEFT JOIN RatingMedia AS rm ON r.id = rm.id_rating
+      WHERE o.id = @order_id AND u.id_account = @idAccount
+      `;
+      const result = await new sql.Request()
+        .input("order_id", order_id)
+        .input("idAccount", request.userData.uuid)
+        .query(query);
+      const resultMap = {};
+      const rating_count = [0, 0, 0, 0, 0];
+      let rcount_with_context = 0;
+      let rcount_with_image = 0;
+      result.recordset.forEach((item) => {
+        const { id, image, ...rest } = item;
+        if (!resultMap[id]) {
+          resultMap[id] = {
+            rating_id: id,
+            itemid: item.itemid,
+            comment: item.comment ? item.comment : null,
+            rating_star: item.product_quality ? item.product_quality : null,
+            ctime: item.ctime ? item.ctime : null,
+            editable: item.editable_date ? 1 : 0,
+            editable_date: item.editable_date ? item.editable_date : null,
+            userid: item.userid,
+            author_username: item.author_username,
+            author_portrait:
+              item.author_portrait ===
+              "https://down-vn.img.susercontent.com/file/"
+                ? null
+                : item.author_portrait,
+            product_items: [
+              {
+                itemid: item.itemid,
+                name: item.name,
+                modelid: item.modelid,
+                model_name: item.model_name ? item.model_name : null,
+              },
+            ],
+            detailed_rating: {
+              product_quality: item.product_quality,
+              seller_service: item.seller_service ? item.seller_service : null,
+              delivery_service: item.delivery_service
+                ? item.delivery_service
+                : null,
+              driver_service: item.driver_service ? item.driver_service : null,
+            },
+            images: [],
+            ItemRatingReply: item.comment_reply
+              ? {
+                  itemid: item.itemid,
+                  ctime: item.ctime_reply,
+                  userid: item.userid_reply,
+                  comment: item.comment_reply,
+                }
+              : null,
+          };
+          if (item.comment) {
+            rcount_with_context++;
+          }
+          if (item.image) {
+            rcount_with_image++;
+          }
+          const index = item.product_quality - 1;
+          if (index >= 0 && index < 5) {
+            rating_count[index]++;
+          }
+        }
+        if (image) {
+          resultMap[id].images.push(image);
+        }
+      });
+      const resultArray = Object.values(resultMap);
+      response.status(200).json({
+        ratings: resultArray,
+        total: resultArray.length,
+        item_rating_summary: {
+          rating_avg:
+            resultArray.length > 0
+              ? parseFloat(
+                  (
+                    rating_count.reduce((a, b, i) => a + b * (i + 1), 0) /
+                    resultArray.length
+                  ).toFixed(1)
+                )
+              : 0,
+          rating_total: resultArray.length,
+          rating_count: rating_count,
+          rcount_with_context: rcount_with_context,
+          rcount_with_image: rcount_with_image,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      response.status(500).json({
+        error: error,
+      });
+    }
+  }
 );
 
 // router.post("/import", async (request, response) => {
