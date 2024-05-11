@@ -616,9 +616,11 @@ async function getOrderDetailByID(orderID) {
     po.finish_pay AS finishPay,
     oi.orderItemJsonToString AS dataOrderItem,
     po.amount AS totalOrder,
-    ot.actionDate AS dateOrderStatus
+    ot.actionDate AS dateOrderStatus,
+    r.order_item_id AS canRating
     FROM [Order] AS o
     JOIN Order_item AS oi ON o.id = oi.orderId
+    LEFT JOIN Rating AS r ON oi.id = r.order_item_id
 		LEFT JOIN Payment_order AS po ON po.orderId = o.id
     LEFT JOIN OrderTracking AS ot ON o.id = ot.orderId
     WHERE o.id = @orderID AND ot.orderStatus = (
@@ -658,6 +660,7 @@ async function getOrderDetailByID(orderID) {
           paymentMethod: item.paymentMethod,
           orderStatus: item.orderStatus,
           finishPay: item.finishPay,
+          canRating: item.canRating ? false : true,
           totalOrder: item.totalOrder,
           dateCreateOrder: item.dateCreateOrder,
           dateOrderStatus: item.dateOrderStatus,
