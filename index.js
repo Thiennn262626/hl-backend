@@ -12,7 +12,7 @@ const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
 
 //import file
-const accountRouter = require("./api/routes/account");
+const authRouter = require("./api/routes/auth");
 const categoryRouter = require("./api/routes/category");
 const userRouter = require("./api/routes/user");
 const addressRouter = require("./api/routes/address");
@@ -39,7 +39,7 @@ app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
 //use method from file
-app.use("/api/hlshop/auth", accountRouter);
+app.use("/api/hlshop/auth", authRouter);
 app.use("/api/hlshop/users", userRouter);
 app.use("/api/hlshop/product-category", categoryRouter);
 app.use("/api/hlshop/receiver-address", addressRouter);

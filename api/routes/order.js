@@ -635,6 +635,12 @@ async function getOrderDetailByID(orderID) {
       .query(query);
 
     const resultMap = {};
+    let canRating = true;
+    result.recordset.forEach((item) => {
+      if (item.canRating !== null) {
+        canRating = false;
+      }
+    });
 
     result.recordset.forEach((item) => {
       const {
@@ -660,7 +666,7 @@ async function getOrderDetailByID(orderID) {
           paymentMethod: item.paymentMethod,
           orderStatus: item.orderStatus,
           finishPay: item.finishPay,
-          canRating: item.canRating ? false : true,
+          canRating: canRating,
           totalOrder: item.totalOrder,
           dateCreateOrder: item.dateCreateOrder,
           dateOrderStatus: item.dateOrderStatus,
