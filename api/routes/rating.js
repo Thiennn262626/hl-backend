@@ -91,9 +91,9 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
             order_item.productSKUID,
             userid
           );
-          if (order_item.images_url && order_item.images_url.length > 0) {
-            order_item.images_url.forEach(async (image) => {
-              console.log("images_url: ", image);
+          if (order_item.images && order_item.images.length > 0) {
+            order_item.images.forEach(async (image) => {
+              console.log("images: ", image);
               await insertRatingMedia(transaction, rating_id, image);
             });
           }
@@ -156,9 +156,9 @@ async function checkValidOrder(order_detail, order_items) {
         order_item.detailed_rating[key] = null;
       }
     }
-    if (order_item.images_url) {
-      if (order_item.images_url.length > 5) {
-        throw "length of images_url must be less than 5";
+    if (order_item.images) {
+      if (order_item.images.length > 5) {
+        throw "length of images must be less than 5";
       }
     }
   }
@@ -337,7 +337,7 @@ async function addRating(
     throw error;
   }
 }
-async function insertRatingMedia(transaction, id_rating, images_url) {
+async function insertRatingMedia(transaction, id_rating, images) {
   try {
     const query = `
     INSERT INTO RatingMedia(id_rating, created_date, linkString)
@@ -347,7 +347,7 @@ async function insertRatingMedia(transaction, id_rating, images_url) {
       .request()
       .input("id_rating", id_rating)
       .input("created_date", new Date())
-      .input("linkString", images_url)
+      .input("linkString", images)
       .query(query);
   } catch (error) {
     throw error;
@@ -357,12 +357,12 @@ async function insertRatingMedia(transaction, id_rating, images_url) {
 router.post("/update", checkAuth, checkRole, async (request, response) => {
   let transaction = new sql.Transaction();
   try {
-    const { rating_id, comment, detailed_rating, images_url } = request.body;
+    const { rating_id, comment, detailed_rating, images } = request.body;
     const data_input = {
       rating_id,
       comment,
       detailed_rating,
-      images_url,
+      images,
     };
     // Kiểm tra dữ liệu đầu vào
     const new_data_input = checkRatingInput(data_input);
@@ -378,30 +378,30 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
         console.log("userid: ", userid);
         const list_image = await getImages(transaction, rating_id);
         //so sanh danh sach anh cu va moi
-        const images_url = new_data_input.images_url;
-        const images_url_old = list_image.map((item) => {
+        const images = new_data_input.images;
+        const images_old = list_image.map((item) => {
           return item;
         });
-        const images_url_new = images_url.map((item) => {
+        const images_new = images.map((item) => {
           return item;
         });
-        const images_url_delete = images_url_old.filter(
-          (item) => !images_url_new.includes(item)
+        const images_delete = images_old.filter(
+          (item) => !images_new.includes(item)
         );
-        const images_url_insert = images_url_new.filter(
-          (item) => !images_url_old.includes(item)
+        const images_insert = images_new.filter(
+          (item) => !images_old.includes(item)
         );
-        console.log("images_url_delete: ", images_url_delete);
-        console.log("images_url_insert: ", images_url_insert);
+        console.log("images_delete: ", images_delete);
+        console.log("images_insert: ", images_insert);
         // xoa anh cu
-        if (images_url_delete.length > 0) {
-          for (const image of images_url_delete) {
+        if (images_delete.length > 0) {
+          for (const image of images_delete) {
             await deleteRatingMedia(transaction, image);
           }
         }
         // them anh moi
-        if (images_url_insert.length > 0) {
-          for (const image of images_url_insert) {
+        if (images_insert.length > 0) {
+          for (const image of images_insert) {
             await insertRatingMedia(transaction, rating_id, image);
           }
         }
@@ -473,10 +473,10 @@ function checkRatingInput(dataInput) {
         dataInput.detailed_rating[key] = null;
       }
     }
-    console.log("dataInput.images_url: ", dataInput.images_url);
-    if (dataInput.images_url) {
-      if (dataInput.images_url.length > 5) {
-        throw "length of images_url must be less than 5";
+    console.log("dataInput.images: ", dataInput.images);
+    if (dataInput.images) {
+      if (dataInput.images.length > 5) {
+        throw "length of images must be less than 5";
       }
     }
     return dataInput;
