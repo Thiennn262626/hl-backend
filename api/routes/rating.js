@@ -173,11 +173,15 @@ async function checkValidOrder(order_detail, order_items) {
         if (index > 0) {
           product_sku_option += ",";
         }
-        return item.locAttributeValueName;
+        return item.locAttributeValueName
+          ? item.locAttributeValueName
+          : "nomal";
       });
 
       order_items[index].product_sku_option =
-        order_item.attribute[0].locAttributeValueName;
+        order_item.attribute.length > 0
+          ? order_item.attribute[0].locAttributeValueName
+          : "nomal";
       order_items[index].productSKUID = order_item.productSKUID;
     }
     if (!orderItem) {
@@ -330,8 +334,11 @@ async function addRating(
       .input("driver_service", detailed_rating.driver_service)
       .input("id_user", id_user)
       .input("created_date", new Date())
-      .input("product_sku_option", product_sku_option)
-      .input("productSKUID", productSKUID)
+      .input(
+        "product_sku_option",
+        product_sku_option ? product_sku_option : null
+      )
+      .input("productSKUID", productSKUID ? productSKUID : null)
       .query(query);
     return result.recordset[0].rating_id;
   } catch (error) {
