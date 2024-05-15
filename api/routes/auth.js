@@ -416,4 +416,135 @@ router.post("/signin-phone", async (request, response) => {
   }
 });
 
+router.post("/forgot-password/send-otp-email", async (request, response) => {
+  try {
+    const email = request.body.userLogin;
+    const query = "SELECT id FROM Account WHERE userLogin = @email";
+    const result = await new sql.Request().input("email", email).query(query);
+
+    if (result.recordset.length !== 0) {
+      var otp = mail_util.getRandomInt();
+      mail_util.sendOTP(email, otp);
+
+      const createdDate = new Date();
+      const expiredDate = new Date(createdDate.getTime() + 32000);
+      const queryOtp =
+        "INSERT INTO Otp(value, createdDate, id_account) OUTPUT inserted.id VALUES (@value, @createdDate, @id_account)";
+      const otpResult = await new sql.Request()
+        .input("value", otp)
+        .input("createdDate", createdDate)
+        .input("id_account", result.recordset[0].id)
+        .query(queryOtp);
+
+      response.status(201).json({
+        userID: result.recordset[0].id,
+        uuid: otpResult.recordset[0].id,
+        userLogin: email,
+        today: createdDate,
+        expired: expiredDate,
+        // otp: otp.toString(),
+      });
+    } else {
+      response.status(400).json({
+        errorCode: "MSG0020",
+        message: "User is not existing",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    response.status(500).json({
+      errorCode: "Internal Server Error",
+    });
+  }
+});
+
+router.post("/forgot-password/send-otp-phone", async (request, response) => {
+  try {
+    const phone = request.body.userLogin;
+    const query = "SELECT id FROM Account WHERE userLogin = @phone";
+    const result = await new sql.Request().input("phone", phone).query(query);
+
+    if (result.recordset.length !== 0) {
+      var otp = mail_util.getRandomInt();
+
+      const createdDate = new Date();
+      const expiredDate = new Date(createdDate.getTime() + 32000);
+      const queryOtp =
+        "INSERT INTO Otp(value, createdDate, id_account) OUTPUT inserted.id VALUES (@value, @createdDate, @id_account)";
+      const otpResult = await new sql.Request()
+        .input("value", otp)
+        .input("createdDate", createdDate)
+        .input("id_account", result.recordset[0].id)
+        .query(queryOtp);
+
+      response.status(201).json({
+        userID: result.recordset[0].id,
+        uuid: otpResult.recordset[0].id,
+        userLogin: phone,
+        today: createdDate,
+        expired: expiredDate,
+        otp: otp.toString(),
+      });
+    } else {
+      response.status(400).json({
+        errorCode: "MSG0020",
+        message: "User is not existing",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    response.status(500).json({
+      errorCode: "Internal Server Error",
+    });
+  }
+});
+
+router.post("/forgot-password/verify-otp", async (request, response) => {
+  try {
+    const idAccount = request.body.userID;
+    const idOtp = request.body.uuid;
+    const otp = request.body.otp;
+
+    const query =
+      "SELECT * FROM Otp WHERE id_account = @idAccount AND createdDate = (SELECT MAX(createdDate) FROM OTP ) AND id = @idOtp";
+    const result = await new sql.Request()
+      .input("idAccount", idAccount)
+      .input("idOtp", idOtp)
+      .query(query);
+
+    const today = new Date();
+    const expired = today.getTime() - result.recordset[0].createdDate.getTime();
+    if (expired < 32000) {
+      if (result.recordset[0].value === parseInt(otp)) {
+        const token = jwt.sign({ uuid: idAccount }, process.env.privateKey, {
+          expiresIn: "10h",
+        });
+        response.status(201).json({
+          token: token,
+          userID: idAccount,
+        });
+      } else {
+        response.status(400).json({
+          errorCode: "MSG0008",
+          message: "Mã otp của bạn bị sai",
+        });
+      }
+    } else {
+      response.status(400).json({
+        errorCode: "MSG0043",
+        message: "Mã otp của bạn  đã quá hạn!",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    response.status(500).json({
+      errorCode: "Internal Server Error",
+    });
+  }
+});
+
+router.post(
+  "/forgot-password/create-password",
+  async (request, response) => {}
+);
 module.exports = router;

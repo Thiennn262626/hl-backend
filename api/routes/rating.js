@@ -41,16 +41,6 @@ router.post(
             expires: "03-01-2030",
           });
           const publicUrl = signedUrls[0];
-          // const query = `
-          //   INSERT INTO RatingMedia(linkString, created_date)
-          //   OUTPUT inserted.id AS id_media
-          //   SELECT @url AS linkString, @createdDate AS created_date
-          // `;
-          // console.log("publicUrl: ", publicUrl);
-          // const result = await new sql.Request()
-          //   .input("url", publicUrl)
-          //   .input("createdDate", new Date())
-          //   .query(query);
           response.status(201).json({
             Message: "Upload successful!",
             url: publicUrl,
@@ -102,9 +92,10 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
             userid
           );
           if (order_item.images_url && order_item.images_url.length > 0) {
-            for (const image of order_item.images_url) {
+            order_item.images_url.forEach(async (image) => {
+              console.log("images_url: ", image);
               await insertRatingMedia(transaction, rating_id, image);
-            }
+            });
           }
           console.log("rating_id: ", rating_id);
         }
@@ -389,10 +380,10 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
         //so sanh danh sach anh cu va moi
         const images_url = new_data_input.images_url;
         const images_url_old = list_image.map((item) => {
-          return item.url_image;
+          return item;
         });
         const images_url_new = images_url.map((item) => {
-          return item.url_image;
+          return item;
         });
         const images_url_delete = images_url_old.filter(
           (item) => !images_url_new.includes(item)
