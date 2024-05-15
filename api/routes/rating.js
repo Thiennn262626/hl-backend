@@ -92,10 +92,11 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
             userid
           );
           if (order_item.images && order_item.images.length > 0) {
-            order_item.images.forEach(async (image) => {
-              console.log("images: ", image);
-              await insertRatingMedia(transaction, rating_id, image);
-            });
+            await Promise.all(
+              order_item.images.map(async (image) => {
+                await insertRatingMedia(transaction, rating_id, image);
+              })
+            );
           }
           console.log("rating_id: ", rating_id);
         }
@@ -377,33 +378,33 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
         );
         console.log("userid: ", userid);
         const list_image = await getImages(transaction, rating_id);
-        //so sanh danh sach anh cu va moi
-        const images = new_data_input.images;
-        const images_old = list_image.map((item) => {
-          return item;
-        });
-        const images_new = images.map((item) => {
-          return item;
-        });
-        const images_delete = images_old.filter(
-          (item) => !images_new.includes(item)
-        );
-        const images_insert = images_new.filter(
-          (item) => !images_old.includes(item)
-        );
-        console.log("images_delete: ", images_delete);
-        console.log("images_insert: ", images_insert);
-        // xoa anh cu
-        if (images_delete.length > 0) {
-          for (const image of images_delete) {
-            await deleteRatingMedia(transaction, image);
+        const images_input = new_data_input.images;
+        if (Array.isArray(images_input)) {
+          const images_old = list_image.map((item) => item);
+          const images_new = images_input.map((item) => item);
+          const images_delete = images_old.filter(
+            (item) => !images_new.includes(item)
+          );
+          const images_insert = images_new.filter(
+            (item) => !images_old.includes(item)
+          );
+          console.log("images_delete: ", images_delete);
+          console.log("images_insert: ", images_insert);
+          // xoa anh cu
+          if (images_delete.length > 0) {
+            for (const image of images_delete) {
+              await deleteRatingMedia(transaction, image);
+            }
           }
-        }
-        // them anh moi
-        if (images_insert.length > 0) {
-          for (const image of images_insert) {
-            await insertRatingMedia(transaction, rating_id, image);
+          // them anh moi
+          if (images_insert.length > 0) {
+            for (const image of images_insert) {
+              await insertRatingMedia(transaction, rating_id, image);
+            }
           }
+        } else {
+          console.log("Dữ liệu hình ảnh không hợp lệ.");
+          throw "Invalid image data";
         }
         // update rating
         await updateRating(
@@ -473,7 +474,6 @@ function checkRatingInput(dataInput) {
         dataInput.detailed_rating[key] = null;
       }
     }
-    console.log("dataInput.images: ", dataInput.images);
     if (dataInput.images) {
       if (dataInput.images.length > 5) {
         throw "length of images must be less than 5";
@@ -522,8 +522,8 @@ async function getImages(transaction, id_rating) {
       .request()
       .input("id_rating", id_rating)
       .query(query);
-    console.log("result: ", result.recordset);
-    return result.recordset;
+    const images = result.recordset.map((record) => record.url_image);
+    return images;
   } catch (error) {
     throw error;
   }
