@@ -756,9 +756,11 @@ router.get(
       rm.linkString AS image,
       r.comment_reply AS comment_reply,
       r.userid_reply AS userid_reply,
-      r.created_date_reply AS ctime_reply
+      r.created_date_reply AS ctime_reply,
+      oi.orderItemJsonToString AS order_item_json
       FROM [User] AS u
       JOIN Rating AS r ON u.id = r.id_user
+      JOIN Order_item AS oi ON r.order_item_id = oi.id
       JOIN ProductSku AS ps ON r.product_sku_id = ps.id
       JOIN Product AS p ON ps.idProduct = p.id
       LEFT JOIN RatingMedia AS rm ON r.id = rm.id_rating
@@ -795,6 +797,12 @@ router.get(
                 name: item.name,
                 modelid: item.modelid,
                 model_name: item.model_name ? item.model_name : null,
+                model_image: item.order_item_json
+                  ? JSON.parse(item.order_item_json).medias?.[0]?.linkString
+                  : null,
+                model_price: item.order_item_json
+                  ? JSON.parse(item.order_item_json).price
+                  : null,
               },
             ],
             detailed_rating: {
@@ -905,7 +913,8 @@ router.get(
       rm.linkString AS image,
       r.comment_reply AS comment_reply,
       r.userid_reply AS userid_reply,
-      r.created_date_reply AS ctime_reply
+      r.created_date_reply AS ctime_reply,
+      oi.orderItemJsonToString AS order_item_json
       FROM [User] AS u
 			JOIN [Order] AS o ON o.idUser = u.id
 			JOIN Order_item AS oi ON oi.orderId = o.id
@@ -947,6 +956,12 @@ router.get(
                 name: item.name,
                 modelid: item.modelid,
                 model_name: item.model_name ? item.model_name : null,
+                model_image: item.order_item_json
+                  ? JSON.parse(item.order_item_json).medias?.[0]?.linkString
+                  : null,
+                model_price: item.order_item_json
+                  ? JSON.parse(item.order_item_json).price
+                  : null,
               },
             ],
             detailed_rating: {
