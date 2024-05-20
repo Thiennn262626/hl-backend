@@ -25,6 +25,7 @@ const orderRouter = require("./api/routes/order");
 const feeShipRouter = require("./api/routes/feeship");
 const subcribeRouter = require("./api/routes/subcribe");
 const ratingRouter = require("./api/routes/rating");
+const trainingRouter = require("./api/routes/ztrain");
 
 //import file admin
 const adminAccountRouter = require("./admin/routes/account");
@@ -52,6 +53,7 @@ app.use("/api/hlshop/ward", wardRouter);
 app.use("/api/hlshop/feeship", feeShipRouter);
 app.use("/api/hlshop/subcribe", subcribeRouter);
 app.use("/api/hlshop/rating", ratingRouter);
+app.use("/api/hlshop/training", trainingRouter);
 
 //use method from file admin
 app.use("/api/hlshop/admin/auth", adminAccountRouter);

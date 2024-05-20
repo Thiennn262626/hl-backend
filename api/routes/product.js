@@ -8,6 +8,8 @@ const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 
+const ContentBasedRecommender = require("../../lib/ContentBasedRecommender");
+
 async function getProductDetail(idProduct) {
   try {
     const queryProduct = `
@@ -837,72 +839,6 @@ router.get("/get-list-good-price-today", async (request, response) => {
   }
 });
 
-// async function getListProductSameCategory(idProduct, idCategory) {
-//   try {
-//     const queryProduct = `
-//       SELECT
-//       p.id AS productID,
-//       p.name AS productName,
-//       p.description AS productDescription,
-//       p.slogan AS productSlogan,
-//       p.notes AS productNotes,
-//       p.madeIn AS productMadeIn,
-//       ps.id AS productSKUID,
-//       ps.price AS price,
-//       ps.priceBefore AS priceBefore,
-//       m.id AS mediaID,
-//       m.linkString AS linkString,
-//       m.title AS title,
-//       m.description AS description
-//       FROM Product as p
-//       JOIN ProductSku as ps ON p.id = ps.idProduct
-//       JOIN Media as m ON p.id = m.id_product
-//       WHERE p.id_Category = @idCategory AND p.id != @idProduct AND ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
-//       ORDER BY p.sellQuantity DESC
-//     `;
-
-//     const result = await new sql
-//       .Request()
-//       .input("idCategory", idCategory)
-//       .input("idProduct", idProduct)
-//       .query(queryProduct);
-
-//     const resultMap = {};
-//     result.recordset.forEach((item) => {
-//       const { productID, productSKUID, mediaID } = item;
-//       if (!resultMap[productID]) {
-//         resultMap[productID] = {
-//           productID: productID,
-//           productName: item.productName,
-//           productDescription: item.productDescription,
-//           productSlogan: item.productSlogan,
-//           productNotes: item.productNotes,
-//           productMadeIn: item.productMadeIn,
-//           medias: [
-//             {
-//               mediaID: mediaID,
-//               linkString: item.linkString,
-//               title: item.title ? item.title : "",
-//               description: item.description ? item.description : "",
-//             },
-//           ],
-//           productSKU: [
-//             {
-//               productSKUID: productSKUID,
-//               price: item.price,
-//               priceBefore: item.priceBefore,
-//             },
-//           ],
-//         };
-//       }
-//     });
-
-//     const resultArray = Object.values(resultMap);
-//     return resultArray;
-//   } catch (error) {
-//     throw error;
-//   }
-// }
 router.get("/get-list-same-category", async (request, response) => {
   try {
     var productID = request.query.productID;
@@ -921,11 +857,21 @@ router.get("/get-list-same-category", async (request, response) => {
     //call api from web
     res = await recommendByProduct(productID);
     if (res.result) {
-      id_list = res.result;
-      resultArray = resultArray.filter((item) =>
+      const id_list = res.result;
+
+      // Lọc resultArray để chỉ bao gồm các phần tử có productID trong id_list
+      let filteredResultArray = resultArray.filter((item) =>
         id_list.includes(item.productID)
       );
+
+      // Sắp xếp filteredResultArray theo thứ tự của id_list
+      filteredResultArray.sort((a, b) => {
+        return id_list.indexOf(a.productID) - id_list.indexOf(b.productID);
+      });
+
+      resultArray = filteredResultArray;
     }
+
     // Phân trang
     const paginatedResult = resultArray.slice(offset, offset + limit);
 
@@ -940,45 +886,108 @@ router.get("/get-list-same-category", async (request, response) => {
 
 async function recommendByProduct(productID) {
   try {
-    const productid2idx = await RedisService.getJson("productid2idx");
-    const product_index = productid2idx[productID];
-    const product_embedding = await RedisService.getJson(
-      "trained_product_embeddings"
-    );
-    const product_vector = product_embedding[product_index];
-    const distances_x = product_embedding.map((v) =>
-      calculateDistance(v, product_vector)
-    );
-    const sorted_indices = distances_x
-      .slice()
-      .sort((a, b) => a - b)
-      .map((_, i) => i)
-      .slice(1, 61);
-
-    const top60_product_id = sorted_indices.map((i) =>
-      Object.keys(productid2idx).find((key) => productid2idx[key] === i)
-    );
-
+    const rcm = await getRecommendation(productID);
+    if (rcm.relatedProducts) {
+      const top50_product_id = rcm.relatedProducts.map((item) => item.id);
+      return {
+        result: top50_product_id,
+      };
+    }
     return {
-      result: top60_product_id,
+      recommended_product: "No recommended product for this product",
     };
   } catch (error) {
     throw error;
   }
 }
-
-// Hàm tính khoảng cách giữa hai vector
-function calculateDistance(vector1, vector2) {
-  // console.log(vector1, vector2);
-  if (!vector1 || !vector2 || vector1.length !== vector2.length) {
-    return NaN; // Trả về NaN nếu vector không tồn tại hoặc có độ dài không phù hợp
+async function getProduct() {
+  try {
+    const query = `
+      SELECT
+      id,
+      name,
+      slogan,
+      description,
+      notes,
+      madeIn,
+      uses,
+      objectsOfUse,
+      preserve,
+      instructionsForUse
+      FROM Product
+    `;
+    const result = await sql.query(query);
+    const updatedRecordset = result.recordset.map((record) => {
+      const updatedRecord = { ...record };
+      if (updatedRecord.uses === "productUses") {
+        updatedRecord.uses = "";
+      }
+      if (updatedRecord.notes === "productNotes") {
+        updatedRecord.notes = "";
+      }
+      if (updatedRecord.objectsOfUse === "productObjectsOfUse") {
+        updatedRecord.objectsOfUse = "";
+      }
+      if (updatedRecord.preserve === "productPreserve") {
+        updatedRecord.preserve = "";
+      }
+      if (updatedRecord.instructionsForUse === "productInstructionsForUse") {
+        updatedRecord.instructionsForUse = "";
+      }
+      return updatedRecord;
+    });
+    return updatedRecordset.map((product) => ({
+      id: product.id,
+      content: `${product.name} ${product.description} ${product.madeIn} ${product.uses} ${product.objectsOfUse} ${product.preserve} ${product.instructionsForUse}`,
+    }));
+  } catch (err) {
+    console.log(err);
   }
-  let sumSquaredDiff = 0;
-  for (let i = 0; i < vector1.length; i++) {
-    sumSquaredDiff += Math.pow(vector1[i] - vector2[i], 2);
-  }
-  return Math.sqrt(sumSquaredDiff);
 }
+async function getRecommendation(id) {
+  try {
+    const products = await getProduct();
+    //check id is valid
+    const product = products.find((product) => product.id === id);
+    if (!product) {
+      throw "Invalid product id";
+    }
+    //check if redis has the data
+    const key = "recommendation-content-based-" + id;
+    const data = await RedisService.getJson(key);
+    if (data) {
+      return data;
+    }
+    const recommender = new ContentBasedRecommender();
+
+    recommender.train(products);
+
+    const relatedProducts = recommender.getSimilarDocuments(id, 0, 50);
+    const result = {
+      content: product.id,
+      relatedProducts: relatedProducts,
+    };
+    //save to redis
+    await RedisService.setJson(key, result);
+    await RedisService.expire(key, 60 * 60 * 24);
+    return result;
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+// // Hàm tính khoảng cách giữa hai vector
+// function calculateDistance(vector1, vector2) {
+//   // console.log(vector1, vector2);
+//   if (!vector1 || !vector2 || vector1.length !== vector2.length) {
+//     return NaN; // Trả về NaN nếu vector không tồn tại hoặc có độ dài không phù hợp
+//   }
+//   let sumSquaredDiff = 0;
+//   for (let i = 0; i < vector1.length; i++) {
+//     sumSquaredDiff += Math.pow(vector1[i] - vector2[i], 2);
+//   }
+//   return Math.sqrt(sumSquaredDiff);
+// }
 
 router.get("/get-product-attribute", async (request, response) => {
   try {
