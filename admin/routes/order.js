@@ -50,7 +50,7 @@ async function getListOrderByStatus(orderStatus, idAccount) {
           LEFT JOIN Payment_order AS po ON po.orderId = o.id
           LEFT JOIN OrderTracking AS ot ON o.id = ot.orderId
           WHERE o.orderStatus = @orderStatus
-          ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC;
+          ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC
           `;
     const result = await new sql.Request()
       .input("idAccount", idAccount)
@@ -103,7 +103,8 @@ async function getListOrderByStatus(orderStatus, idAccount) {
     const resultArray = Object.values(resultMap);
     return resultArray;
   } catch (error) {
-    throw "Error in getOrderId";
+    console.log(error);
+    throw "Error in getListOrderByStatus";
   }
 }
 

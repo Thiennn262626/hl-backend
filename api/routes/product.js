@@ -459,21 +459,30 @@ router.get(
         default:
           break;
       }
-
+      //call api from web
       res = await recommendByUser(userid);
       if (res.result) {
-        id_list = res.result;
-        result = filteredResult.filter((item) =>
+        const id_list = res.result;
+
+        // Lọc resultArray để chỉ bao gồm các phần tử có productID trong id_list
+        let filteredResultArray = resultArray.filter((item) =>
           id_list.includes(item.productID)
         );
+
+        // Sắp xếp filteredResultArray theo thứ tự của id_list
+        filteredResultArray.sort((a, b) => {
+          return id_list.indexOf(a.productID) - id_list.indexOf(b.productID);
+        });
+
+        resultArray = filteredResultArray;
       }
+
       // Phân trang
-      const paginatedResult = result.slice(offset, offset + limit);
+      const paginatedResult = resultArray.slice(offset, offset + limit);
 
       response.status(200).json({
         result: paginatedResult,
-        total: result.length,
-        recommended: res.result,
+        total: res.result.length,
       });
     } catch (error) {
       console.error(error);
@@ -481,23 +490,18 @@ router.get(
     }
   }
 );
-
 async function recommendByUser(user_id) {
   try {
-    idx2userid_label = await RedisService.getJson("userid2label");
-    label_user = parseInt(idx2userid_label[user_id]);
-    most_5star_productId_user_i = await RedisService.getJson(
-      `most_5star_productId_user_${label_user}`
+    products_rcm = await RedisService.getJson(
+      `collaborative_filtering_user_${user_id}`
     );
-    if (!most_5star_productId_user_i) {
+    console.log("products_rcm: ", products_rcm);
+    if (products_rcm) {
       return {
-        recommended_product: "No recommended product for this user",
+        result: products_rcm,
       };
     }
-    return {
-      result: most_5star_productId_user_i,
-      total: most_5star_productId_user_i.length,
-    };
+    throw "No recommended product for this user";
   } catch (error) {
     console.error(error);
     throw error;
@@ -889,13 +893,12 @@ async function recommendByProduct(productID) {
     const rcm = await getRecommendation(productID);
     if (rcm.relatedProducts) {
       const top50_product_id = rcm.relatedProducts.map((item) => item.id);
+      console.log("top50_product_id: ", top50_product_id);
       return {
         result: top50_product_id,
       };
     }
-    return {
-      recommended_product: "No recommended product for this product",
-    };
+    throw "No recommended product for this product";
   } catch (error) {
     throw error;
   }
@@ -975,19 +978,6 @@ async function getRecommendation(id) {
     console.log(err);
   }
 }
-
-// // Hàm tính khoảng cách giữa hai vector
-// function calculateDistance(vector1, vector2) {
-//   // console.log(vector1, vector2);
-//   if (!vector1 || !vector2 || vector1.length !== vector2.length) {
-//     return NaN; // Trả về NaN nếu vector không tồn tại hoặc có độ dài không phù hợp
-//   }
-//   let sumSquaredDiff = 0;
-//   for (let i = 0; i < vector1.length; i++) {
-//     sumSquaredDiff += Math.pow(vector1[i] - vector2[i], 2);
-//   }
-//   return Math.sqrt(sumSquaredDiff);
-// }
 
 router.get("/get-product-attribute", async (request, response) => {
   try {
