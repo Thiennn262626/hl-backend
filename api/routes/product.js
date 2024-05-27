@@ -9,7 +9,7 @@ const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 
 const ContentBasedRecommender = require("../../lib/ContentBasedRecommender");
-
+const { TrainingContendBaseGetByProduct } = require("../../lib/scheduler");
 async function getProductDetail(idProduct) {
   try {
     const queryProduct = `
@@ -175,8 +175,8 @@ router.get("/get-detail", async (request, response) => {
     if (!result) {
       //;
       result = await getProductDetail(idProduct);
-      RedisService.setJson(`product_${idProduct}`, result);
-      RedisService.expire(`product_${idProduct}`, 1001);
+      await RedisService.setJson(`product_${idProduct}`, result);
+      await RedisService.expire(`product_${idProduct}`, 1001);
     }
     response.status(200).json(result);
   } catch (error) {
@@ -265,8 +265,8 @@ router.get("/get-list-best-seller", async (request, response) => {
     if (!resultArray) {
       //;
       resultArray = await getListProduct();
-      RedisService.setJson("listProduct", resultArray);
-      RedisService.expire("listProduct", 3000);
+      await RedisService.setJson("listProduct", resultArray);
+      await RedisService.expire("listProduct", 60 * 60 * 24);
     }
 
     resultArray.sort((a, b) => {
@@ -380,8 +380,8 @@ router.get(
       if (!resultArray) {
         //;
         resultArray = await getListProduct();
-        RedisService.setJson("listProduct", resultArray);
-        RedisService.expire("listProduct", 3000);
+        await RedisService.setJson("listProduct", resultArray);
+        await RedisService.expire("listProduct", 60 * 60 * 24);
       }
 
       resultArray.sort((a, b) => {
@@ -521,8 +521,8 @@ router.get("/get-list-new", async (request, response) => {
     if (!resultArray) {
       //;
       resultArray = await getListProduct();
-      RedisService.setJson("listProduct", resultArray);
-      RedisService.expire("listProduct", 3000);
+      await RedisService.setJson("listProduct", resultArray);
+      await RedisService.expire("listProduct", 60 * 60 * 24);
     }
 
     resultArray.sort((a, b) => {
@@ -627,8 +627,8 @@ router.get("/get-list-hot", async (request, response) => {
       //;
       console.log("time1: ", new Date().toISOString());
       resultArray = await getListProduct();
-      RedisService.setJson("listProduct", resultArray);
-      RedisService.expire("listProduct", 3000);
+      await RedisService.setJson("listProduct", resultArray);
+      await RedisService.expire("listProduct", 60 * 60 * 24);
     }
 
     resultArray.sort((a, b) => {
@@ -746,8 +746,8 @@ router.get("/get-list-good-price-today", async (request, response) => {
     if (!resultArray) {
       //;
       resultArray = await getListProduct();
-      RedisService.setJson("listProduct", resultArray);
-      RedisService.expire("listProduct", 3000);
+      await RedisService.setJson("listProduct", resultArray);
+      await RedisService.expire("listProduct", 60 * 60 * 24);
     }
 
     resultArray.sort((a, b) => {
@@ -854,8 +854,8 @@ router.get("/get-list-same-category", async (request, response) => {
     if (!resultArray) {
       //;
       resultArray = await getListProduct();
-      RedisService.setJson("listProduct", resultArray);
-      RedisService.expire("listProduct", 3000);
+      await RedisService.setJson("listProduct", resultArray);
+      await RedisService.expire("listProduct", 60 * 60 * 24);
     }
 
     //call api from web
@@ -890,92 +890,23 @@ router.get("/get-list-same-category", async (request, response) => {
 
 async function recommendByProduct(productID) {
   try {
-    const rcm = await getRecommendation(productID);
-    if (rcm.relatedProducts) {
-      const top50_product_id = rcm.relatedProducts.map((item) => item.id);
-      console.log("top50_product_id: ", top50_product_id);
+    var key = "recommendation-content-based-" + productID;
+    const rcm = await RedisService.getJson(key);
+
+    if (rcm) {
+      const top50_product_id = rcm.map((item) => item.id);
+      return {
+        result: top50_product_id,
+      };
+    } else {
+      const rcm = await TrainingContendBaseGetByProduct(productID);
+      const top50_product_id = rcm.map((item) => item.id);
       return {
         result: top50_product_id,
       };
     }
-    throw "No recommended product for this product";
   } catch (error) {
     throw error;
-  }
-}
-async function getProduct() {
-  try {
-    const query = `
-      SELECT
-      id,
-      name,
-      slogan,
-      description,
-      notes,
-      madeIn,
-      uses,
-      objectsOfUse,
-      preserve,
-      instructionsForUse
-      FROM Product
-    `;
-    const result = await sql.query(query);
-    const updatedRecordset = result.recordset.map((record) => {
-      const updatedRecord = { ...record };
-      if (updatedRecord.uses === "productUses") {
-        updatedRecord.uses = "";
-      }
-      if (updatedRecord.notes === "productNotes") {
-        updatedRecord.notes = "";
-      }
-      if (updatedRecord.objectsOfUse === "productObjectsOfUse") {
-        updatedRecord.objectsOfUse = "";
-      }
-      if (updatedRecord.preserve === "productPreserve") {
-        updatedRecord.preserve = "";
-      }
-      if (updatedRecord.instructionsForUse === "productInstructionsForUse") {
-        updatedRecord.instructionsForUse = "";
-      }
-      return updatedRecord;
-    });
-    return updatedRecordset.map((product) => ({
-      id: product.id,
-      content: `${product.name} ${product.description} ${product.madeIn} ${product.uses} ${product.objectsOfUse} ${product.preserve} ${product.instructionsForUse}`,
-    }));
-  } catch (err) {
-    console.log(err);
-  }
-}
-async function getRecommendation(id) {
-  try {
-    const products = await getProduct();
-    //check id is valid
-    const product = products.find((product) => product.id === id);
-    if (!product) {
-      throw "Invalid product id";
-    }
-    //check if redis has the data
-    const key = "recommendation-content-based-" + id;
-    const data = await RedisService.getJson(key);
-    if (data) {
-      return data;
-    }
-    const recommender = new ContentBasedRecommender();
-
-    recommender.train(products);
-
-    const relatedProducts = recommender.getSimilarDocuments(id, 0, 50);
-    const result = {
-      content: product.id,
-      relatedProducts: relatedProducts,
-    };
-    //save to redis
-    await RedisService.setJson(key, result);
-    await RedisService.expire(key, 60 * 60 * 24);
-    return result;
-  } catch (err) {
-    console.log(err);
   }
 }
 
@@ -994,8 +925,11 @@ router.get("/get-product-attribute", async (request, response) => {
     if (!responseData) {
       //;
       responseData = await getProductAttributes(productID);
-      RedisService.setJson("product_attribute_" + productID, responseData);
-      RedisService.expire("product_attribute_" + productID, 3000);
+      await RedisService.setJson(
+        "product_attribute_" + productID,
+        responseData
+      );
+      await RedisService.expire("product_attribute_" + productID, 3000);
     }
     response.status(200).json(responseData);
   } catch (error) {
@@ -1071,8 +1005,8 @@ router.get("/get-product-sku-by-product-id", async (request, response) => {
     if (!skuss) {
       //;
       skuss = await processSkus(productID);
-      RedisService.setJson("product_sku_" + productID, skuss);
-      RedisService.expire("product_sku_" + productID, 3000);
+      await RedisService.setJson("product_sku_" + productID, skuss);
+      await RedisService.expire("product_sku_" + productID, 3000);
     }
     response.status(200).json({
       productID: productID,

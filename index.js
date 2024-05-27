@@ -10,6 +10,8 @@ const { connectToDatabase } = require("./config");
 connectToDatabase();
 const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
+const { scheduleInterval } = require("./lib/scheduler");
+scheduleInterval();
 
 //import file
 const authRouter = require("./api/routes/auth");
