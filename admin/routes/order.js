@@ -14,11 +14,10 @@ router.get(
   checkRoleAdmin,
   async (request, response) => {
     try {
-      const { orderStatus } = request.query;
-      const ListOrder = await getListOrderByStatus(
-        orderStatus,
-        request.userData.uuid
-      );
+      var orderStatus = parseInt(request.query.orderStatus) || 0;
+      var offset = parseInt(request.query.offset) || 0;
+      var limit = parseInt(request.query.limit) || 10;
+      const ListOrder = await getListOrderByStatus(orderStatus, offset, limit);
       response.status(200).json(ListOrder);
     } catch (error) {
       if (error.code === "EREQUEST") {
@@ -32,7 +31,7 @@ router.get(
     }
   }
 );
-async function getListOrderByStatus(orderStatus, idAccount) {
+async function getListOrderByStatus(orderStatus) {
   try {
     const query = `
           SELECT
@@ -49,11 +48,14 @@ async function getListOrderByStatus(orderStatus, idAccount) {
           LEFT JOIN Order_item AS oi ON oi.orderId = o.id
           LEFT JOIN Payment_order AS po ON po.orderId = o.id
           LEFT JOIN OrderTracking AS ot ON o.id = ot.orderId
-          WHERE o.orderStatus = @orderStatus
-          ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC
+          WHERE o.orderStatus = @orderStatus AND ot.orderStatus = (
+                              SELECT MAX(ot_sub.orderStatus)
+                              FROM OrderTracking AS ot_sub
+                              WHERE ot_sub.orderId = o.id
+                              )
+          ORDER BY ot.actionDate DESC
           `;
     const result = await new sql.Request()
-      .input("idAccount", idAccount)
       .input("orderStatus", orderStatus)
       .query(query);
     const resultMap = {};
