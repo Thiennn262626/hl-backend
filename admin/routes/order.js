@@ -23,7 +23,7 @@ router.get(
       if (offset < 0 || limit < 0) {
         throw "Invalid offset";
       }
-      if (limit - offset > 100 || limit - offset < 0) {
+      if (limit - offset > 100) {
         throw "Invalid limit";
       }
       const ListOrder = await getListOrderByStatus(orderStatus, offset, limit);
