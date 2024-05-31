@@ -17,6 +17,15 @@ router.get(
       var orderStatus = parseInt(request.query.orderStatus) || 0;
       var offset = parseInt(request.query.offset) || 0;
       var limit = parseInt(request.query.limit) || 10;
+      if (orderStatus < 0 || orderStatus > 7) {
+        throw "Invalid order status";
+      }
+      if (offset < 0 || limit < 0) {
+        throw "Invalid offset";
+      }
+      if (limit - offset > 100 || limit - offset < 0) {
+        throw "Invalid limit";
+      }
       const ListOrder = await getListOrderByStatus(orderStatus, offset, limit);
       response.status(200).json(ListOrder);
     } catch (error) {
@@ -31,32 +40,68 @@ router.get(
     }
   }
 );
-async function getListOrderByStatus(orderStatus) {
+async function getListOrderByStatus(orderStatus, offset, limit) {
   try {
+    console.log("orderStatus: " + orderStatus);
+    console.log("offset: " + offset);
+    console.log("limit: " + limit);
+    // const query = `
+    //       SELECT
+    //       o.id AS orderID,
+    //       o.orderCode,
+    //       o.paymentMethod,
+    //       o.orderStatus,
+    //       o.orderShippingFee,
+    //       po.finish_pay AS finishPay,
+    //       oi.orderItemJsonToString AS dataOrderItem,
+    //       ot.actionDate,
+    //       ot.orderStatus AS orderStatusTracking
+    //       FROM [Order] AS o
+    //       LEFT JOIN Order_item AS oi ON oi.orderId = o.id
+    //       LEFT JOIN Payment_order AS po ON po.orderId = o.id
+    //       LEFT JOIN OrderTracking AS ot ON o.id = ot.orderId
+    //       WHERE o.orderStatus = @orderStatus AND ot.orderStatus = (
+    //                           SELECT MAX(ot_sub.orderStatus)
+    //                           FROM OrderTracking AS ot_sub
+    //                           WHERE ot_sub.orderId = o.id
+    //                           )
+    //       ORDER BY ot.actionDate DESC
+    //       `;
     const query = `
-          SELECT
-          o.id AS orderID,
-          o.orderCode,
-          o.paymentMethod,
-          o.orderStatus,
-          o.orderShippingFee,
-          po.finish_pay AS finishPay,
-          oi.orderItemJsonToString AS dataOrderItem,
-          ot.actionDate,
-          ot.orderStatus AS orderStatusTracking
-          FROM [Order] AS o
-          LEFT JOIN Order_item AS oi ON oi.orderId = o.id
-          LEFT JOIN Payment_order AS po ON po.orderId = o.id
-          LEFT JOIN OrderTracking AS ot ON o.id = ot.orderId
-          WHERE o.orderStatus = @orderStatus AND ot.orderStatus = (
+    WITH PagedOrders AS (
+    SELECT o.id AS orderID
+    FROM [Order] AS o
+    LEFT JOIN OrderTracking AS ot ON o.id = ot.orderId
+    WHERE o.orderStatus = @orderStatus AND ot.orderStatus = (
                               SELECT MAX(ot_sub.orderStatus)
                               FROM OrderTracking AS ot_sub
                               WHERE ot_sub.orderId = o.id
                               )
-          ORDER BY ot.actionDate DESC
-          `;
+    ORDER BY ot.actionDate DESC
+    OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+    )
+
+    SELECT
+        o.id AS orderID,
+        o.orderCode,
+        o.paymentMethod,
+        o.orderStatus,
+        o.orderShippingFee,
+        por.finish_pay AS finishPay,
+        oi.orderItemJsonToString AS dataOrderItem,
+        ot.actionDate,
+        ot.orderStatus AS orderStatusTracking
+    FROM PagedOrders AS po
+    JOIN [Order]  AS o ON po.orderID = o.id
+    LEFT JOIN Order_item  AS oi ON oi.orderId = o.id
+    LEFT JOIN Payment_order  AS por ON por.orderId = o.id
+    LEFT JOIN OrderTracking  AS ot ON o.id = ot.orderId
+    ORDER BY ot.actionDate DESC
+    `;
     const result = await new sql.Request()
       .input("orderStatus", orderStatus)
+      .input("offset", offset)
+      .input("limit", limit)
       .query(query);
     const resultMap = {};
     result.recordset.forEach((item) => {
