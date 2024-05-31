@@ -764,8 +764,7 @@ async function countOrders(idAccount) {
     COUNT(CASE WHEN o.orderStatus = 4 THEN 1 END) AS countDeliverySuccess,
     COUNT(CASE WHEN o.orderStatus = 5 THEN 1 END) AS countCustomerCancelled,
     COUNT(CASE WHEN o.orderStatus = 6 THEN 1 END) AS countSellerCancelled,
-    COUNT(CASE WHEN o.orderStatus = 7 THEN 1 END) AS countReturned,
-    COUNT(CASE WHEN o.orderStatus = 8 THEN 1 END) AS countCancel
+    COUNT(CASE WHEN o.orderStatus = 7 THEN 1 END) AS countReturned
     FROM [User] AS u
     JOIN [Order] AS o ON u.id = o.idUser
     WHERE u.id_account = @idAccount;
