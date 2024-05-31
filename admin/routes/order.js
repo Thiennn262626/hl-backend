@@ -164,6 +164,54 @@ async function getListOrderByStatus(orderStatus, offset, limit) {
 //   ORDER_STATUS_SELLER_CANCELLED : 6,
 //   ORDER_STATUS_RETURNED : 7,
 
+router.get(
+  "/get-count-list",
+  checkAuth,
+  checkRoleAdmin,
+  async (request, response) => {
+    try {
+      const responseCount = await countOrders(request.userData.uuid);
+      response.status(200).json(responseCount);
+    } catch (error) {
+      if (error.code === "EREQUEST") {
+        return response.status(500).json({
+          error: "",
+        });
+      }
+
+      response.status(500).json({
+        message: "Không thể lấy số lượng đơn hàng",
+      });
+    }
+  }
+);
+
+async function countOrders(idAccount) {
+  try {
+    const query = `
+    SELECT
+    COUNT(CASE WHEN o.orderStatus = 0 THEN 1 END) AS countNew,
+    COUNT(CASE WHEN o.orderStatus = 1 THEN 1 END) AS countApproved,
+    COUNT(CASE WHEN o.orderStatus = 2 THEN 1 END) AS countPacking,
+    COUNT(CASE WHEN o.orderStatus = 3 THEN 1 END) AS countOnDelivering,
+    COUNT(CASE WHEN o.orderStatus = 4 THEN 1 END) AS countDeliverySuccess,
+    COUNT(CASE WHEN o.orderStatus = 5 THEN 1 END) AS countCustomerCancelled,
+    COUNT(CASE WHEN o.orderStatus = 6 THEN 1 END) AS countSellerCancelled,
+    COUNT(CASE WHEN o.orderStatus = 7 THEN 1 END) AS countReturned,
+    COUNT(CASE WHEN o.orderStatus = 8 THEN 1 END) AS countCancel
+    FROM [User] AS u
+    JOIN [Order] AS o ON u.id = o.idUser
+    WHERE u.id_account = @idAccount;
+    `;
+    const result = await new sql.Request()
+      .input("idAccount", idAccount)
+      .query(query);
+    return result.recordset[0];
+  } catch (error) {
+    throw "Error in countOrders";
+  }
+}
+
 router.post(
   "/admin-update-order-status",
   checkAuth,
