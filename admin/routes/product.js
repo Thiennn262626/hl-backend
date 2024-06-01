@@ -9,6 +9,7 @@ const checkRoleAdmin = require("../../middleware/check_role_admin");
 const firebase = require("../../firebase");
 
 const multer = require("multer");
+const e = require("express");
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
@@ -603,32 +604,178 @@ router.post(
   }
 );
 
-async function getListProduct() {
-  try {
-    const queryProduct = `
-              SELECT
-              p.id AS productID,
-              p.name AS productName,
-              p.description AS productDescription,
-              p.slogan AS productSlogan,
-              p.notes AS productNotes,
-              p.madeIn AS productMadeIn,
-              p.sellQuantity AS sellQuantity,
-              p.createdDate AS createdDate,
-              p.enable AS productEnable,
-              ps.id AS productSKUID,
-              ps.price AS price,
-              ps.priceBefore AS priceBefore,
-              m.id AS mediaID,
-              m.linkString AS linkString,
-              m.title AS title,
-              m.description AS description
+function processSortBy(sortBy) {
+  switch (sortBy) {
+    case 0:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT p.id AS productID
+              FROM Product as p
+              ORDER BY p.enable DESC
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+              )`,
+        end: "ORDER BY p.enable DESC",
+      };
+    case 1:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT p.id AS productID
+              FROM Product as p
+              ORDER BY p.enable ASC
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+              )`,
+        end: "ORDER BY p.enable ASC",
+      };
+    case 2:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT DISTINCT productID, price
+              FROM (
+                  SELECT p.id AS productID, ps.price
+                  FROM Product AS p
+                  RIGHT JOIN ProductSku AS ps ON p.id = ps.idProduct
+                  WHERE ps.price = (
+                      SELECT MIN(psk.price)
+                      FROM ProductSku AS psk
+                      WHERE p.id = psk.idProduct
+                  )
+              ) AS Subquery
+              ORDER BY price ASC
+              OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
+              )`,
+        end: "ORDER BY pp.price",
+      };
+    case 3:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT DISTINCT productID, price
+              FROM (
+                  SELECT p.id AS productID, ps.price
+                  FROM Product AS p
+                  RIGHT JOIN ProductSku AS ps ON p.id = ps.idProduct
+                  WHERE ps.price = (
+                      SELECT MAX(psk.price)
+                      FROM ProductSku AS psk
+                      WHERE p.id = psk.idProduct
+                  )
+              ) AS Subquery
+              ORDER BY price DESC
+              OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
+              )`,
+        end: "ORDER BY pp.price DESC",
+      };
+    case 4:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT p.id AS productID
+              FROM Product as p
+              ORDER BY p.name ASC 
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+              )`,
+        end: "ORDER BY p.name ASC",
+      };
+    case 5:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT p.id AS productID
+              FROM Product as p
+              ORDER BY p.name DESC 
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+              )`,
+        end: "ORDER BY p.name DESC",
+      };
+    case 6:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT p.id AS productID
+              FROM Product as p
+              ORDER BY p.createdDate DESC
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+              )`,
+        end: "ORDER BY p.createdDate DESC",
+      };
+    case 7:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT p.id AS productID
+              FROM Product as p
+              ORDER BY p.createdDate ASC
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+              )`,
+        end: "ORDER BY p.createdDate ASC",
+      };
+    case 8:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT p.id AS productID
               FROM Product as p
               JOIN ProductSku as ps ON p.id = ps.idProduct
-              JOIN Media as m ON p.id = m.id_product
-              ORDER BY p.sellQuantity DESC
-            `;
-    const result = await new sql.Request().query(queryProduct);
+              WHERE ps.quantity = (
+                                  SELECT MIN(ps.quantity)
+                                  FROM ProductSku as ps 
+                                  WHERE p.id = ps.idProduct
+                                  )
+              ORDER BY ps.quantity
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+              )`,
+        end: "ORDER BY ps.quantity",
+      };
+    case 9:
+      return {
+        fist: `WITH PagedProduct AS (
+              SELECT p.id AS productID
+              FROM Product as p
+              JOIN ProductSku as ps ON p.id = ps.idProduct
+              WHERE ps.quantity = (
+                                  SELECT MAX(ps.quantity)
+                                  FROM ProductSku as ps 
+                                  WHERE p.id = ps.idProduct
+                                  )
+              ORDER BY ps.quantity DESC
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
+              )`,
+        end: "ORDER BY ps.quantity DESC",
+      };
+    default:
+      return "";
+  }
+  //0: dang ban, 1: dang khoa, 2: gia tang dan, 3: gia giam dan,
+  //4: ten a-z, 5: ten z-a, 6: moi nhat, 7: cu nhat,
+  //8: so luong ton kho tang dan, 9: so luong ton kho giam dan
+}
+
+async function getListProduct(offset, limit, sortBy) {
+  try {
+    let sort = processSortBy(sortBy);
+    const queryProduct = `
+		 ${sort.fist} 
+		SELECT
+		p.id AS productID,
+		p.name AS productName,
+		p.description AS productDescription,
+		p.slogan AS productSlogan,
+		p.notes AS productNotes,
+		p.madeIn AS productMadeIn,
+		p.sellQuantity AS sellQuantity,
+		p.createdDate AS createdDate,
+		p.enable AS productEnable,
+		ps.id AS productSKUID,
+		ps.price AS price,
+		ps.priceBefore AS priceBefore,
+		m.id AS mediaID,
+		m.linkString AS linkString,
+		m.title AS title,
+		m.description AS description
+		FROM PagedProduct AS pp
+		JOIN Product as p ON p.id = pp.productID
+		JOIN ProductSku as ps ON p.id = ps.idProduct
+		JOIN Media as m ON p.id = m.id_product
+    ${sort.end}
+    `;
+    const result = await new sql.Request()
+      .input("offset", offset)
+      .input("limit", limit)
+      .query(queryProduct);
 
     const resultMap = {};
     result.recordset.forEach((item) => {
@@ -676,96 +823,16 @@ router.get(
   checkRoleAdmin,
   async (request, response) => {
     try {
-      // var offset = parseInt(request.query.offset) || 0;
-      // var limit = parseInt(request.query.limit) || 10;
-      var offset = parseInt(request.query.offset);
-      var limit = parseInt(request.query.limit);
-      var search = request.query.search
-        ? request.query.search.toLowerCase()
-        : "";
+      var offset = parseInt(request.query.offset) || 0;
+      var limit = parseInt(request.query.limit) || 10;
       var sortBy = parseInt(request.query.sortBy);
-      var minAmount = parseInt(request.query.minAmount || 0);
-      var maxAmount = parseInt(request.query.maxAmount || 1000000000);
+      var search = request.query.search;
 
-      const resultArray = await getListProduct();
-
-      const filteredResult = resultArray.filter((item) => {
-        const productNameMatch = item.productName
-          ? item.productName.toLowerCase().includes(search)
-          : false;
-        const productDescriptionMatch = item.productDescription
-          ? item.productDescription.toLowerCase().includes(search)
-          : false;
-        const productSloganMatch = item.productSlogan
-          ? item.productSlogan.toLowerCase().includes(search)
-          : false;
-        const productNotesMatch = item.productNotes
-          ? item.productNotes.toLowerCase().includes(search)
-          : false;
-        const productMadeInMatch = item.productMadeIn
-          ? item.productMadeIn.toLowerCase().includes(search)
-          : false;
-        const priceMatch =
-          !isNaN(minAmount) && !isNaN(maxAmount)
-            ? item.productSKU &&
-              item.productSKU.length > 0 &&
-              item.productSKU[0].price >= minAmount &&
-              item.productSKU[0].price <= maxAmount
-            : true;
-        return (
-          (productNameMatch ||
-            productDescriptionMatch ||
-            productSloganMatch ||
-            productNotesMatch ||
-            productMadeInMatch) &&
-          priceMatch
-        );
-      });
-      //sortBy: 0: Giá tăng dần, 1: Giá giảm dần, 2: mới nhất, 3: cũ nhất, 4: phổ biến nhất, 5: bán chạy nhất
-      switch (sortBy) {
-        case 0:
-          filteredResult.sort((a, b) => {
-            return a.productSKU[0].price - b.productSKU[0].price;
-          });
-          break;
-        case 1:
-          filteredResult.sort((a, b) => {
-            return b.productSKU[0].price - a.productSKU[0].price;
-          });
-          break;
-        case 2:
-          filteredResult.sort((a, b) => {
-            return new Date(b.createdDate) - new Date(a.createdDate);
-          });
-          break;
-        case 3:
-          filteredResult.sort((a, b) => {
-            return new Date(a.createdDate) - new Date(b.createdDate);
-          });
-          break;
-
-        case 4:
-          filteredResult.sort((a, b) => {
-            return (
-              b.sellQuantity / b.productSKU[0].price -
-              a.sellQuantity / a.productSKU[0].price
-            );
-          });
-          break;
-        case 5:
-          filteredResult.sort((a, b) => {
-            return b.sellQuantity - a.sellQuantity;
-          });
-          break;
-        default:
-          break;
-      }
-      // Phân trang
-      // const paginatedResult = filteredResult.slice(offset, offset + limit);
+      const resultArray = await getListProduct(offset, limit, sortBy);
 
       response.status(200).json({
-        result: filteredResult,
-        total: filteredResult.length,
+        result: resultArray,
+        total: resultArray.length,
       });
     } catch (error) {
       console.error(error);
@@ -1021,5 +1088,6 @@ router.post("/restock-sku", checkAuth, checkRoleAdmin, async (req, res) => {
     });
   }
 });
+
 module.exports = router;
 module.exports.insertProduct1 = insertProduct1;
