@@ -817,6 +817,18 @@ async function getListProduct(offset, limit, sortBy) {
   }
 }
 
+async function getLengthProduct() {
+  try {
+    const query = `
+    SELECT COUNT(p.id) AS total
+    FROM Product as p
+    `;
+    const result = await new sql.Request().query(query);
+    return result.recordset[0].total;
+  } catch (error) {
+    throw error;
+  }
+}
 router.get(
   "/get-all-product",
   checkAuth,
@@ -826,13 +838,12 @@ router.get(
       var offset = parseInt(request.query.offset) || 0;
       var limit = parseInt(request.query.limit) || 10;
       var sortBy = parseInt(request.query.sortBy);
-      var search = request.query.search;
-
+      // var search = request.query.search;
       const resultArray = await getListProduct(offset, limit, sortBy);
-
+      const length = await getLengthProduct();
       response.status(200).json({
         result: resultArray,
-        total: resultArray.length,
+        total: length,
       });
     } catch (error) {
       console.error(error);
