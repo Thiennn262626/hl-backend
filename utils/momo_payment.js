@@ -45,15 +45,13 @@ async function createMomoPayment(orderId, amount) {
   };
 
   try {
-    const response = await axios.post(
-      "https://test-payment.momo.vn/gateway/api/developer-web/init",
-      requestBody,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const url = "https://test-payment.momo.vn/v2/gateway/api/create";
+    // url = "https://test-payment.momo.vn/gateway/api/developer-web/init";
+    const response = await axios.post(url, requestBody, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     const resultData = {
       signature: signature,
@@ -145,7 +143,7 @@ async function refundOrderPayment(amount, transId, orderIdOrder, requestId) {
     "&transId=" +
     transId;
 
-  const crypto = require("crypto");
+  // const crypto = require("crypto");
   var signature = crypto
     .createHmac("sha256", secretKey)
     .update(rawSignature)
