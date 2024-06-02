@@ -789,7 +789,7 @@ router.get("/payment-success", async (req, res) => {
     if (
       paymentOrder.requestId === requestId &&
       paymentOrder.amount === Number(amount) &&
-      message === "Successful." &&
+      message === "Thành công." &&
       resultCode === "0"
     ) {
       const total = Number(amount).toLocaleString("vi-VN", {
