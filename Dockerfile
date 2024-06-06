@@ -1,15 +1,17 @@
-FROM node:18.17.1
+# Sử dụng một hình ảnh Node.js chứa phiên bản bạn muốn
+FROM node:18-alpine
 
-EXPOSE 3000
-
+# Thiết lập thư mục làm việc
 WORKDIR /app
 
-RUN npm i npm@latest -g
+# Sao chép package.json và package-lock.json vào thư mục làm việc
+COPY package*.json ./
 
-COPY package.json package-lock.json ./
+# Cài đặt các phụ thuộc
+RUN npm install --force
 
-RUN npm install
-
+# Sao chép tất cả các tệp từ thư mục nguồn vào thư mục làm việc
 COPY . .
-
+# Chạy ứng dụng trên port 80
 CMD ["node", "index.js"]
+EXPOSE 3000
