@@ -19,11 +19,11 @@ router.get(
           s.idProduct AS idProduct
         FROM Subcribe AS s
         LEFT JOIN [User] AS u ON s.id_user = u.id
-        WHERE u.id_account = @idAccount AND s.idProduct = @idProduct
+        WHERE u.id = @user_id AND s.idProduct = @idProduct
       `;
 
       const result = await new sql.Request()
-        .input("idAccount", request.userData.uuid)
+        .input("user_id", request.user_id)
         .input("idProduct", productID)
         .query(query);
 
@@ -54,7 +54,7 @@ router.get(
     try {
       var offset = parseInt(request.query.offset) || 0;
       var limit = parseInt(request.query.limit) || 10;
-      const resultArray = await getListProductSubcribe(request.userData.uuid);
+      const resultArray = await getListProductSubcribe(request.user_id);
       // Phân trang
       const paginatedResult = resultArray.slice(offset, offset + limit);
 
@@ -82,22 +82,11 @@ router.post("/subcribe", checkAuth, checkRole, async (request, response) => {
       });
     }
 
-    const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await new sql.Request()
-      .input("idAccount", request.userData.uuid)
-      .query(queryUser);
-
-    if (!userResult.recordset || userResult.recordset.length === 0) {
-      return response.status(404).json({
-        error: "User not found",
-      });
-    }
-
     // Sử dụng TRY-CATCH để xử lý lỗi khi thực hiện câu truy vấn SQL
     try {
       const queryMergeCart = `
         MERGE INTO Subcribe AS target
-        USING (VALUES (@idUser, @idProduct, @createdDate)) AS source (id_user, idProduct, createdDate)
+        USING (VALUES (@user_id, @idProduct, @createdDate)) AS source (id_user, idProduct, createdDate)
         ON target.id_user = source.id_user AND target.idProduct = source.idProduct
         WHEN NOT MATCHED THEN
           INSERT (id_user, idProduct, createdDate)
@@ -105,7 +94,7 @@ router.post("/subcribe", checkAuth, checkRole, async (request, response) => {
       `;
 
       await new sql.Request()
-        .input("idUser", userResult.recordset[0].id)
+        .input("user_id", request.user_id)
         .input("idProduct", productID)
         .input("createdDate", createdDate)
         .query(queryMergeCart);
@@ -142,22 +131,11 @@ router.post("/unsubcribe", checkAuth, checkRole, async (request, response) => {
       });
     }
 
-    const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await new sql.Request()
-      .input("idAccount", request.userData.uuid)
-      .query(queryUser);
-
-    if (!userResult.recordset || userResult.recordset.length === 0) {
-      return response.status(404).json({
-        error: "User not found",
-      });
-    }
-
     // Sử dụng TRY-CATCH để xử lý lỗi khi thực hiện câu truy vấn SQL
     try {
       const queryUnsubscribe = `
         MERGE INTO Subcribe AS target
-        USING (VALUES (@idUser, @idProduct)) AS source (id_user, idProduct)
+        USING (VALUES (@user_id, @idProduct)) AS source (id_user, idProduct)
         ON target.id_user = source.id_user AND target.idProduct = source.idProduct
         WHEN MATCHED THEN
         DELETE
@@ -165,7 +143,7 @@ router.post("/unsubcribe", checkAuth, checkRole, async (request, response) => {
         `;
 
       const result = await new sql.Request()
-        .input("idUser", userResult.recordset[0].id)
+        .input("user_id", request.user_id)
         .input("idProduct", productID)
         .query(queryUnsubscribe);
 
@@ -189,7 +167,7 @@ router.post("/unsubcribe", checkAuth, checkRole, async (request, response) => {
   }
 });
 
-async function getListProductSubcribe(idAccount) {
+async function getListProductSubcribe(user_id) {
   try {
     const queryProduct = `
       SELECT 
@@ -210,12 +188,12 @@ async function getListProductSubcribe(idAccount) {
       LEFT JOIN Media as m ON p.id = m.id_product
       RIGHT JOIN Subcribe as s ON p.id = s.idProduct
       RIGHT JOIN [User] as u ON s.id_user = u.id
-      WHERE u.id_account = @idAccount
+      WHERE u.id = @user_id
       ORDER BY s.createdDate DESC 
     `;
 
     const result = await new sql.Request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .query(queryProduct);
 
     const resultMap = {};
@@ -251,7 +229,7 @@ async function getListProductSubcribe(idAccount) {
     const resultArray = Object.values(resultMap);
     return resultArray;
   } catch (error) {
-    throw "ERROR";
+    throw "ERROR GET LIST PRODUCT SUBCRIBE";
   }
 }
 

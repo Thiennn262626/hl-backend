@@ -206,52 +206,65 @@ router.post(
               }
               break;
             case 1:
-              if (orderStatus === 2) {
-                // chuyen trang thai dong goi
-                await updateOrderStatus(orderID, orderStatus, transaction);
-                await createOrderTracking(
-                  orderID,
-                  transaction,
-                  now,
-                  orderStatus
-                );
-              } else if (orderStatus === 6) {
-                if (checkExpired) {
-                  if (finishPay === false) {
-                    // huy don hang
-                    await updateOrderStatus(orderID, orderStatus, transaction);
-                    await createOrderTracking(
-                      orderID,
-                      transaction,
-                      now,
-                      orderStatus
-                    );
-                  } else {
-                    await updateOrderStatus(orderID, orderStatus, transaction);
-                    await createOrderTracking(
-                      orderID,
-                      transaction,
-                      now,
-                      orderStatus
-                    );
-                    refundOrderPayment(
-                      amount,
-                      transId,
-                      orderIdOrder,
-                      requestId
-                    );
-                    console.log("refundOrderPayment success");
-                    await updateOrderPayment(orderID, transaction);
-                    if (
-                      orderItem.receiverAddresse.receiverEmail !== null ||
-                      orderItem.receiverAddresse.receiverEmail !== ""
-                    ) {
-                      mail_util.sendMessagePaymentRefund(orderItem);
+              switch (orderStatus) {
+                case 2:
+                  // chuyen trang thai dong goi
+                  await updateOrderStatus(orderID, orderStatus, transaction);
+                  await createOrderTracking(
+                    orderID,
+                    transaction,
+                    now,
+                    orderStatus
+                  );
+                  break;
+                case 6:
+                  if (checkExpired) {
+                    if (finishPay === false) {
+                      // huy don hang
+                      await updateOrderStatus(
+                        orderID,
+                        orderStatus,
+                        transaction
+                      );
+                      await createOrderTracking(
+                        orderID,
+                        transaction,
+                        now,
+                        orderStatus
+                      );
+                    } else {
+                      await updateOrderStatus(
+                        orderID,
+                        orderStatus,
+                        transaction
+                      );
+                      await createOrderTracking(
+                        orderID,
+                        transaction,
+                        now,
+                        orderStatus
+                      );
+                      refundOrderPayment(
+                        amount,
+                        transId,
+                        orderIdOrder,
+                        requestId
+                      );
+                      console.log("refundOrderPayment success");
+                      await updateOrderPayment(orderID, transaction);
+                      if (
+                        orderItem.receiverAddresse.receiverEmail !== null ||
+                        orderItem.receiverAddresse.receiverEmail !== ""
+                      ) {
+                        mail_util.sendMessagePaymentRefund(orderItem);
+                      }
                     }
+                  } else {
+                    throw "Chua het han 10 ngay";
                   }
-                } else {
-                  throw "Chua het han 10 ngay";
-                }
+                  break;
+                default:
+                  throw "Invalid order status";
               }
               break;
             case 2:

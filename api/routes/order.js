@@ -26,11 +26,12 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
     await transaction
       .begin()
       .then(async () => {
+        const idUser = request.user_id;
         //lay dia chi nguoi nhan
-        const [toDistrictID, toWardCode, receiverAddress, idUser] =
+        const [toDistrictID, toWardCode, receiverAddress] =
           await getAddressReceive(
             receiverAddressID,
-            request.userData.uuid,
+            request.user_id,
             transaction
           );
         // tao bang order gom createDate, paymentMethod, userID,
@@ -211,7 +212,7 @@ async function getSizeItem(cartID) {
   }
 }
 
-async function getAddressReceive(receiverAddressID, idAccount, transaction) {
+async function getAddressReceive(receiverAddressID, user_id, transaction) {
   try {
     const query = `
     SELECT
@@ -231,12 +232,12 @@ async function getAddressReceive(receiverAddressID, idAccount, transaction) {
     u.id AS userID
     FROM [User] AS u
     JOIN AddressReceive AS ar ON u.id = ar.id_user
-    WHERE ar.id = @receiverAddressID AND u.id_account = @idAccount;
+    WHERE ar.id = @receiverAddressID AND u.id = @user_id;
     `;
     const result = await transaction
       .request()
       .input("receiverAddressID", receiverAddressID)
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .query(query);
     if (result.recordset.length === 0) {
       throw "Not Exist receiverAddressID";
@@ -246,7 +247,6 @@ async function getAddressReceive(receiverAddressID, idAccount, transaction) {
         result.recordset[0].districtID,
         result.recordset[0].wardID,
         addressToText,
-        result.recordset[0].userID,
       ];
     }
   } catch (error) {
@@ -477,10 +477,7 @@ function generateOrderCode(orderID, DateNow) {
 router.get("/get-list", checkAuth, checkRole, async (request, response) => {
   try {
     const { orderStatus } = request.query;
-    const ListOrder = await getListOrderByStatus(
-      orderStatus,
-      request.userData.uuid
-    );
+    const ListOrder = await getListOrderByStatus(orderStatus, request.user_id);
     response.status(200).json(ListOrder);
   } catch (error) {
     if (error.code === "EREQUEST") {
@@ -493,7 +490,7 @@ router.get("/get-list", checkAuth, checkRole, async (request, response) => {
     });
   }
 });
-async function getListOrderByStatus(orderStatus, idAccount) {
+async function getListOrderByStatus(orderStatus, user_id) {
   try {
     const query = `
           SELECT
@@ -509,12 +506,11 @@ async function getListOrderByStatus(orderStatus, idAccount) {
           LEFT JOIN Order_item AS oi ON oi.orderId = o.id
           LEFT JOIN Payment_order AS po ON po.orderId = o.id
           LEFT JOIN OrderTracking AS ot ON o.id = ot.orderId
-          WHERE
-          u.id_account = @idAccount AND o.orderStatus = @orderStatus
+          WHERE u.id = @user_id AND o.orderStatus = @orderStatus
           ORDER BY COALESCE(ot.actionDate, o.createdDate) DESC;
           `;
     const result = await new sql.Request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .input("orderStatus", orderStatus)
       .query(query);
     const resultMap = {};
@@ -565,7 +561,7 @@ router.get("/get-detail", checkAuth, checkRole, async (request, response) => {
   try {
     const { orderID } = request.query;
 
-    await checkOrderExist(orderID, request.userData.uuid);
+    await checkOrderExist(orderID, request.user_id);
     const orderItem = await getOrderDetailByID(orderID);
     response.status(200).json(orderItem);
   } catch (error) {
@@ -580,17 +576,17 @@ router.get("/get-detail", checkAuth, checkRole, async (request, response) => {
   }
 });
 
-async function checkOrderExist(orderID, idAccount) {
+async function checkOrderExist(orderID, user_id) {
   try {
     const query = `
     SELECT
     1
     FROM [User] AS u
     JOIN [Order] AS o ON u.id = o.idUser
-    WHERE u.id_account = @idAccount AND o.id = @orderID
+    WHERE u.id = @user_id AND o.id = @orderID
     `;
     const result = await new sql.Request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .input("orderID", orderID)
       .query(query);
     if (result.recordset.length === 0) {
@@ -687,7 +683,7 @@ router.get(
   async (request, response) => {
     try {
       const { orderID } = request.query;
-      await checkOrderExist(orderID, request.userData.uuid);
+      await checkOrderExist(orderID, request.user_id);
       const orderStatusTrackingList = await getListOrderStatusTracking(orderID);
       response.status(200).json(orderStatusTrackingList);
     } catch (error) {
@@ -737,7 +733,7 @@ router.get(
   checkRole,
   async (request, response) => {
     try {
-      const responseCount = await countOrders(request.userData.uuid);
+      const responseCount = await countOrders(request.user_id);
       response.status(200).json(responseCount);
     } catch (error) {
       if (error.code === "EREQUEST") {
@@ -753,7 +749,7 @@ router.get(
   }
 );
 
-async function countOrders(idAccount) {
+async function countOrders(user_id) {
   try {
     const query = `
     SELECT
@@ -767,10 +763,10 @@ async function countOrders(idAccount) {
     COUNT(CASE WHEN o.orderStatus = 7 THEN 1 END) AS countReturned
     FROM [User] AS u
     JOIN [Order] AS o ON u.id = o.idUser
-    WHERE u.id_account = @idAccount;
+    WHERE u.id = @user_id;
     `;
     const result = await new sql.Request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .query(query);
     return result.recordset[0];
   } catch (error) {
@@ -846,7 +842,7 @@ async function updatePaymentOrderFinishPay(orderID, transId) {
   }
 }
 
-async function getPaymentOrderbyOrderID(orderID, idAccount) {
+async function getPaymentOrderbyOrderID(orderID) {
   try {
     const query = `
     SELECT
@@ -880,7 +876,7 @@ router.post(
     try {
       const { orderID } = request.query;
       const DateNow = new Date();
-      const orderDetail = await getOrderPayment(orderID, request.userData.uuid);
+      const orderDetail = await getOrderPayment(orderID, request.user_id);
       const isExpired = isCreatedLinkExpired(orderDetail.createdLink);
       if (
         orderDetail.paymentMethod !== 1 ||
@@ -976,7 +972,7 @@ async function updatePaymentOrder(
   }
 }
 
-async function getOrderPayment(orderID, idAccount) {
+async function getOrderPayment(orderID, user_id) {
   try {
     const query = `
     SELECT
@@ -992,10 +988,10 @@ async function getOrderPayment(orderID, idAccount) {
     FROM [User] AS u
     JOIN [Order] AS o ON u.id = o.idUser
     LEFT JOIN Payment_order AS po ON o.id = po.orderId
-    WHERE u.id_account = @idAccount AND o.id = @orderID;
+    WHERE u.id = @user_id AND o.id = @orderID;
     `;
     const result = await new sql.Request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .input("orderID", orderID)
       .query(query);
     if (result.recordset.length === 0) {
@@ -1026,7 +1022,7 @@ router.post(
         requestId,
       ] = await checkOrderExistAndGetCurrentStatusAndFinishPay(
         orderID,
-        request.userData.uuid
+        request.user_id
       );
       const orderItem = await getOrderDetailByID(orderID);
       await transaction
@@ -1230,7 +1226,7 @@ async function updateOrderStatus(orderID, orderStatus, transaction) {
 
 async function checkOrderExistAndGetCurrentStatusAndFinishPay(
   orderID,
-  idAccount
+  user_id
 ) {
   try {
     const query = `
@@ -1244,10 +1240,10 @@ async function checkOrderExistAndGetCurrentStatusAndFinishPay(
     FROM [User] AS u
     JOIN [Order] AS o ON u.id = o.idUser
     LEFT JOIN Payment_order AS po ON o.id = po.orderId
-    WHERE u.id_account = @idAccount AND o.id = @orderID
+    WHERE u.id = @user_id AND o.id = @orderID
     `;
     const result = await new sql.Request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .input("orderID", orderID)
       .query(query);
     if (result.recordset.length === 0) {

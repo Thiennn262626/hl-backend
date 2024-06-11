@@ -16,16 +16,10 @@ router.post("/add-cart", checkAuth, checkRole, async (request, response) => {
         error: "Invalid input data",
       });
     }
-
-    const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await new sql.Request()
-      .input("idAccount", request.userData.uuid)
-      .query(queryUser);
-
     // Sử dụng MERGE để thêm mới hoặc cập nhật giỏ hàng
     const queryMergeCart = `
       MERGE INTO Cart AS target
-      USING (VALUES (@idUser, @idProductSku, @quantity, @createdDate)) AS source (id_user, idProductSku, quantity, createdDate)
+      USING (VALUES (@user_id, @idProductSku, @quantity, @createdDate)) AS source (id_user, idProductSku, quantity, createdDate)
       ON target.id_user = source.id_user AND target.idProductSku = source.idProductSku
       WHEN MATCHED THEN
         UPDATE SET target.quantity = target.quantity + source.quantity, target.createdDate = source.createdDate
@@ -35,7 +29,7 @@ router.post("/add-cart", checkAuth, checkRole, async (request, response) => {
     `;
 
     await new sql.Request()
-      .input("idUser", userResult.recordset[0].id)
+      .input("user_id", request.user_id)
       .input("idProductSku", idProductSku)
       .input("quantity", quantity)
       .input("createdDate", createdDate)
@@ -85,10 +79,10 @@ router.post(
       SELECT 1
       FROM [User] AS u
       INNER JOIN Cart AS c ON u.id = c.id_user
-      WHERE u.id_account = @idAccount AND c.id = @idCart;
+      WHERE u.id = @user_id AND c.id = @idCart;
     `;
       const accessCheckResult = await new sql.Request()
-        .input("idAccount", request.userData.uuid)
+        .input("user_id", request.user_id)
         .input("idCart", idCart)
         .query(queryAccessCheck);
 
@@ -148,15 +142,16 @@ router.get(
   checkRole,
   async (request, response) => {
     try {
-      const carts = await getCartList(request.userData.uuid);
+      const carts = await getCartList(request.user_id);
       response.status(200).json(carts);
     } catch (error) {
       handleErrorResponse(error, response);
     }
   }
 );
-async function getCartList(idAccount) {
-  const query = `
+async function getCartList(user_id) {
+  try {
+    const query = `
     SELECT
       c.id AS cartID,
       c.quantity AS quantity,
@@ -190,94 +185,98 @@ async function getCartList(idAccount) {
     LEFT JOIN ProductAttribute AS pa2 ON pav2.productAttributeID = pa2.id
     JOIN Product ON ProductSku.idProduct = Product.id
     LEFT JOIN Media ON Product.id = Media.id_product
-    WHERE [User].id_account = @idAccount
+    WHERE [User].id = @user_id
     ORDER BY c.createdDate DESC;
   `;
 
-  const result = await new sql.Request()
-    .input("idAccount", idAccount)
-    .query(query);
+    const result = await new sql.Request()
+      .input("user_id", user_id)
+      .query(query);
 
-  const resultMap = {};
-  result.recordset.forEach((item) => {
-    const {
-      cartID,
-      productID,
-      productSKUID,
-      mediaID,
-      idAttributeValue1,
-      idAttributeValue2,
-      ...rest
-    } = item;
-    if (!resultMap[cartID]) {
-      resultMap[cartID] = {
-        cartID: cartID,
-        productID: productID,
-        productName: item.productName,
-        productDescription: item.productDescription,
-        productSKUID: productSKUID,
-        medias: [],
-        quantity: item.quantity,
-        price: item.price,
-        priceBefore: item.priceBefore,
-        attribute: [],
-      };
-    }
-    // xu ly anh
-    if (idAttributeValue1 === item.productAttributeValueID) {
-      resultMap[cartID].medias.unshift({
-        mediaID: mediaID,
-        linkString: item.linkString,
-        title: item.title ? item.title : "",
-        description: item.description ? item.description : "",
-      });
-    } else if (resultMap[cartID].medias.length === 0) {
-      resultMap[cartID].medias.push({
-        mediaID: mediaID,
-        linkString: item.linkString,
-        title: item.title ? item.title : "",
-        description: item.description ? item.description : "",
-      });
-    }
-    if (resultMap[cartID].medias.length > 1) {
-      resultMap[cartID].medias.pop();
-    }
-    const attribute1Exit = resultMap[cartID].attribute.some(
-      (attribute) => attribute.attributeValueID === idAttributeValue1
-    );
-
-    if (!attribute1Exit) {
-      if (idAttributeValue1) {
-        resultMap[cartID].attribute.push({
-          localizedAttributeValueID: idAttributeValue1,
-          locAttributeValueName: item.locAttributeValueName1,
-          locAttributeValueDescription: item.locAttributeValueDescription1,
-          attributeValueID: idAttributeValue1,
-          locAttributeName: item.locAttributeName,
-          attributeID: item.attributeID,
+    const resultMap = {};
+    result.recordset.forEach((item) => {
+      const {
+        cartID,
+        productID,
+        productSKUID,
+        mediaID,
+        idAttributeValue1,
+        idAttributeValue2,
+        ...rest
+      } = item;
+      if (!resultMap[cartID]) {
+        resultMap[cartID] = {
+          cartID: cartID,
+          productID: productID,
+          productName: item.productName,
+          productDescription: item.productDescription,
+          productSKUID: productSKUID,
+          medias: [],
+          quantity: item.quantity,
+          price: item.price,
+          priceBefore: item.priceBefore,
+          attribute: [],
+        };
+      }
+      // xu ly anh
+      if (idAttributeValue1 === item.productAttributeValueID) {
+        resultMap[cartID].medias.unshift({
+          mediaID: mediaID,
+          linkString: item.linkString,
+          title: item.title ? item.title : "",
+          description: item.description ? item.description : "",
+        });
+      } else if (resultMap[cartID].medias.length === 0) {
+        resultMap[cartID].medias.push({
+          mediaID: mediaID,
+          linkString: item.linkString,
+          title: item.title ? item.title : "",
+          description: item.description ? item.description : "",
         });
       }
-    }
-    const attribute2Exit = resultMap[cartID].attribute.some(
-      (attribute) =>
-        attribute.attributeValueID === idAttributeValue2 &&
-        attribute.attributeID === item.attributeID2
-    );
-    if (!attribute2Exit) {
-      if (idAttributeValue2) {
-        resultMap[cartID].attribute.push({
-          localizedAttributeValueID: idAttributeValue2,
-          locAttributeValueName: item.locAttributeValueName2,
-          locAttributeValueDescription: item.locAttributeValueDescription2,
-          attributeValueID: idAttributeValue2,
-          locAttributeName: item.locAttributeName2,
-          attributeID: item.attributeID2,
-        });
+      if (resultMap[cartID].medias.length > 1) {
+        resultMap[cartID].medias.pop();
       }
-    }
-  });
+      const attribute1Exit = resultMap[cartID].attribute.some(
+        (attribute) => attribute.attributeValueID === idAttributeValue1
+      );
 
-  return Object.values(resultMap);
+      if (!attribute1Exit) {
+        if (idAttributeValue1) {
+          resultMap[cartID].attribute.push({
+            localizedAttributeValueID: idAttributeValue1,
+            locAttributeValueName: item.locAttributeValueName1,
+            locAttributeValueDescription: item.locAttributeValueDescription1,
+            attributeValueID: idAttributeValue1,
+            locAttributeName: item.locAttributeName,
+            attributeID: item.attributeID,
+          });
+        }
+      }
+      const attribute2Exit = resultMap[cartID].attribute.some(
+        (attribute) =>
+          attribute.attributeValueID === idAttributeValue2 &&
+          attribute.attributeID === item.attributeID2
+      );
+      if (!attribute2Exit) {
+        if (idAttributeValue2) {
+          resultMap[cartID].attribute.push({
+            localizedAttributeValueID: idAttributeValue2,
+            locAttributeValueName: item.locAttributeValueName2,
+            locAttributeValueDescription: item.locAttributeValueDescription2,
+            attributeValueID: idAttributeValue2,
+            locAttributeName: item.locAttributeName2,
+            attributeID: item.attributeID2,
+          });
+        }
+      }
+    });
+
+    return Object.values(resultMap);
+  } catch (error) {
+    console.log(error);
+    throw "Error when get cart list";
+  }
 }
 
 function handleErrorResponse(error, response) {

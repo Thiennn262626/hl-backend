@@ -17,7 +17,7 @@ const upload1 = multer({ storage: storage }).single("file_avatar");
 
 router.get("/get-profile", checkAuth, checkRole, async (request, response) => {
   try {
-    const responseData = await getProfile(request.userData.uuid);
+    const responseData = await getProfile(request.user_id);
     response.status(200).json(responseData);
   } catch (error) {
     console.log(error);
@@ -27,7 +27,7 @@ router.get("/get-profile", checkAuth, checkRole, async (request, response) => {
   }
 });
 
-async function getProfile(idAccount) {
+async function getProfile(user_id) {
   try {
     const query = `
     SELECT
@@ -39,8 +39,6 @@ async function getProfile(idAccount) {
     [User].createdDate,
     [User].userAvatar,
     [User].userCover,
-    Account.role AS accountType,
-    Account.role AS userType,
     Email.id AS emailID,
     Email.emailAddress,
     Email.emailLabel,
@@ -54,14 +52,13 @@ async function getProfile(idAccount) {
     Phone.countryArea,
     Phone.isDefault AS isDefaultPhone
     FROM [User]
-    LEFT JOIN Account ON [User].id_account = Account.id
     LEFT JOIN Email ON [User].id = Email.idUser AND Email.isVerify = 1
     LEFT JOIN Phone ON [User].id = Phone.idUser AND Phone.isVerify = 1
-    WHERE [User].id_account = @idAccount
+    WHERE [User].id = @user_id
     ORDER BY Email.isDefault DESC, Phone.isDefault DESC
     `;
     const result = await new sql.Request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .query(query);
 
     const resultMap = {};
@@ -76,8 +73,8 @@ async function getProfile(idAccount) {
           gender: item.gender ? item.gender : null,
           pID: item.pID ? item.pID : null,
           createdDate: item.createdDate,
-          accountType: item.accountType,
-          userType: item.userType,
+          accountType: 0,
+          userType: 0,
           emails: item.emails,
           phones: item.phones,
           urls: [],
@@ -144,28 +141,23 @@ router.post(
         return;
       }
       const query =
-        "UPDATE [User] SET contactFullName = @contactFullName OUTPUT inserted.id, inserted.slogan, inserted.gender, inserted.pID, inserted.createdDate WHERE id_account = @idAccount";
+        "UPDATE [User] SET contactFullName = @contactFullName OUTPUT inserted.id, inserted.slogan, inserted.gender, inserted.pID, inserted.createdDate WHERE id = @user_id";
       const result = await new sql.Request()
         .input("contactFullName", contactFullName)
-        .input("idAccount", request.userData.uuid)
+        .input("user_id", request.user_id)
         .query(query);
-
-      const queryAccount = "SELECT * FROM Account WHERE id = @idAccount";
-      const resultAccount = await new sql.Request()
-        .input("idAccount", request.userData.uuid)
-        .query(queryAccount);
 
       const toDay = new Date();
       response.status(201).json({
-        userID: request.userData.uuid,
+        userID: request.user_id,
         userLoginID: resultAccount.recordset[0].userLogin,
         contactFullName: contactFullName,
         slogan: result.recordset[0].slogan,
         gender: result.recordset[0].gender,
         pID: result.recordset[0].pID,
         createdDate: result.recordset[0].createdDate,
-        accountType: resultAccount.recordset[0].role,
-        accountStatus: resultAccount.recordset[0].isVerify,
+        accountType: 0,
+        accountStatus: 1,
         userType: 1,
         updatedDate: toDay,
         isLoginIDEmail: null,
@@ -229,9 +221,9 @@ router.post(
             const publicUrl = signedUrls[0];
             image = image + publicUrl;
             const queryUser =
-              "UPDATE [User] SET userCover = @image WHERE id_account = @idAccount";
+              "UPDATE [User] SET userCover = @image WHERE id = @user_id";
             const userResult = await new sql.Request()
-              .input("idAccount", request.userData.uuid)
+              .input("user_id", request.user_id)
               .input("image", image)
               .query(queryUser);
 
@@ -294,9 +286,9 @@ router.post(
             const publicUrl = signedUrls[0];
             image = image + publicUrl;
             const queryUser =
-              "UPDATE [User] SET userAvatar = @image WHERE id_account = @idAccount";
+              "UPDATE [User] SET userAvatar = @image WHERE id = @user_id";
             const userResult = await new sql.Request()
-              .input("idAccount", request.userData.uuid)
+              .input("user_id", user_id)
               .input("image", image)
               .query(queryUser);
 
@@ -336,15 +328,15 @@ router.post(
         .then(async () => {
           await checkEmailIsExisting(
             emailAddress,
-            request.userData.uuid,
+            request.user_id,
             transaction
           );
           const isDefault = await checkUserHaveEmail(
-            request.userData.uuid,
+            request.user_id,
             transaction
           );
-          const [userID, emailID] = await createEmail(
-            request.userData.uuid,
+          const emailID = await createEmail(
+            request.user_id,
             emailAddress,
             isDefault,
             transaction
@@ -364,7 +356,7 @@ router.post(
             status: 200,
             message: "Add Email Success",
             result: {
-              userID: userID,
+              userID: request.user_id,
               uuid: OtpId,
               emailID: emailID,
               emailAddress: emailAddress,
@@ -416,55 +408,55 @@ async function createOtpEmail(otp, createdDate, emailID, transaction) {
     throw "createOtpEmail";
   }
 }
-async function createEmail(idAccount, emailAddress, isDefault, transaction) {
+async function createEmail(user_id, emailAddress, isDefault, transaction) {
   try {
-    const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
+    const queryUser = "SELECT id FROM [User] WHERE id = @user_id";
     const userResult = await new sql.Request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .query(queryUser);
     query = `
           UPDATE Email
           SET createdDate = @createdDate
-          WHERE idUser = @idUser AND emailAddress = @email;
+          WHERE idUser = @user_id AND emailAddress = @email;
 
           IF @@ROWCOUNT = 0
           BEGIN
               INSERT INTO Email (idUser, emailAddress, isDefault, isVerify, createdDate)
-              VALUES (@idUser, @email, @isDefault, 0, @createdDate);
+              VALUES (@user_id, @email, @isDefault, 0, @createdDate);
           END;
 
           SELECT 'Action' = CASE WHEN @@ROWCOUNT > 0 THEN 'UPDATE' ELSE 'INSERT' END,
                 'id' = id,
                 'idUser' = idUser
           FROM Email
-          WHERE idUser = @idUser AND emailAddress = @email;
+          WHERE idUser = @user_id AND emailAddress = @email;
         `;
     const result = await transaction
       .request()
       .input("email", emailAddress)
       .input("isDefault", isDefault)
-      .input("idUser", userResult.recordset[0].id)
+      .input("user_id", user_id)
       .input("createdDate", new Date())
       .query(query);
     console.log(result);
-    return [result.recordset[0].idUser, result.recordset[0].id];
+    return result.recordset[0].id;
   } catch (error) {
     console.log(error);
     throw "createEmail";
   }
 }
 
-async function checkUserHaveEmail(idAccount, transaction) {
+async function checkUserHaveEmail(user_id, transaction) {
   try {
     const query = `
         SELECT 1
         FROM [User]
         LEFT JOIN Email ON [User].id = Email.idUser
-        WHERE [User].id_account = @idAccount AND Email.isVerify = 1
+        WHERE [User].id = @user_id AND Email.isVerify = 1
         `;
     const result = await transaction
       .request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .query(query);
     if (result.recordset.length === 0) {
       return 1;
@@ -476,7 +468,7 @@ async function checkUserHaveEmail(idAccount, transaction) {
   }
 }
 
-async function checkEmailIsExisting(emailAddress, idAccount, transaction) {
+async function checkEmailIsExisting(emailAddress, user_id, transaction) {
   try {
     const queryEmail = `SELECT
       Email.id AS emailID,
@@ -484,12 +476,12 @@ async function checkEmailIsExisting(emailAddress, idAccount, transaction) {
       Email.isVerify
       FROM [User] 
       LEFT JOIN Email ON [User].id = Email.idUser
-      WHERE [User].id_account = @idAccount AND Email.emailAddress = @email
+      WHERE [User].id = @user_id AND Email.emailAddress = @email
       order by Email.isVerify desc
       `;
     const resultEmail = await transaction
       .request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .input("email", emailAddress)
       .query(queryEmail);
     if (resultEmail.recordset.length !== 0) {
@@ -573,7 +565,7 @@ router.post(
           status: 200,
           message: "Resend OTP Email Success",
           result: {
-            userID: request.userData.uuid,
+            userID: request.user_id,
             uuid: otpResult.recordset[0].id,
             emailID: emailID,
             emailAddress: resultEmail.recordset[0].emailAddress,
@@ -616,12 +608,12 @@ router.post(
       FROM [User]
       LEFT JOIN Email ON [User].id = Email.idUser
       LEFT JOIN OtpEmail ON Email.id = OtpEmail.idEmail
-      WHERE [User].id_account = @idAccount AND Email.id = @emailID AND OtpEmail.id = @idOtpEmail
+      WHERE [User].id = @user_id AND Email.id = @emailID AND OtpEmail.id = @idOtpEmail
       `;
       const result = await new sql.Request()
         .input("emailID", emailID)
         .input("idOtpEmail", uuid)
-        .input("idAccount", request.userData.uuid)
+        .input("user_id", request.user_id)
         .query(query);
       console.log(result);
       if (result.recordset.length !== 0) {
@@ -640,7 +632,7 @@ router.post(
               .query(queryAccount);
 
             response.status(201).json({
-              userID: request.userData.uuid,
+              userID: request.user_id,
               emailID: emailID,
               emailAddress: accountResult.recordset[0].emailAddress,
               accountType: 1,
@@ -674,9 +666,9 @@ router.post(
       const phoneLabel = request.body.phoneLabel;
       const isDefault = request.body.isDefault;
 
-      const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
+      const queryUser = "SELECT id FROM [User] WHERE id = @user_id";
       const userResult = await new sql.Request()
-        .input("idAccount", request.userData.uuid)
+        .input("user_id", request.user_id)
         .query(queryUser);
 
       if (isDefault === 1) {
@@ -719,7 +711,7 @@ router.post(
           status: 200,
           message: "Add Phone Success",
           result: {
-            userID: request.userData.uuid,
+            userID: request.user_id,
             uuid: otpResult.recordset[0].id,
             phoneID: resultPhone.recordset[0].id,
             phone: phoneNo,
@@ -755,7 +747,7 @@ router.post(
           status: 200,
           message: "Add Phone Success",
           result: {
-            userID: request.userData.uuid,
+            userID: request.user_id,
             uuid: otpResult.recordset[0].id,
             phoneID: resultPhone.recordset[0].id,
             phone: phoneNo,
@@ -840,7 +832,7 @@ router.post(
           status: 200,
           message: "Resend OTP Phone Success",
           result: {
-            userID: request.userData.uuid,
+            userID: request.user_id,
             uuid: otpResult.recordset[0].id,
             phoneID: phoneID,
             phone: resultPhone.recordset[0].phoneNo,
@@ -899,7 +891,7 @@ router.post(
             .query(queryAccount);
 
           response.status(201).json({
-            userID: request.userData.uuid,
+            userID: request.user_id,
             phoneID: phoneID,
             phone: accountResult.recordset[0].phoneNo,
             accountType: 1,
@@ -942,10 +934,9 @@ router.post(
 
       if (resultPhone.recordset.length !== 0) {
         if (isDefault === 1) {
-          const queryUser =
-            "SELECT id FROM [User] WHERE id_account = @idAccount";
+          const queryUser = "SELECT id FROM [User] WHERE id = @user_id";
           const userResult = await new sql.Request()
-            .input("idAccount", request.userData.uuid)
+            .input("user_id", request.user_id)
             .query(queryUser);
 
           const queryExistPhoneIsDefault =
@@ -988,7 +979,7 @@ router.post(
             status: 200,
             message: "Update Phone Success",
             result: {
-              userID: request.userData.uuid,
+              userID: request.user_id,
               uuid: otpResult.recordset[0].id,
               phoneID: phoneID,
               phone: phoneNo,
@@ -1013,115 +1004,5 @@ router.post(
     }
   }
 );
-// router.put('/update-profile', upload, checkAuth, checkRole, async(request, response) => {
-//     try{
-//         const firstName = request.body.firstName;
-//         const lastName = request.body.lastName;
-//         const gender = request.body.gender;
-//         const phone = request.body.phone;
-//         const address = request.body.address;
-//         const dateOfBirth = request.body.dateOfBirth;
-//         var image = '';
-//         var date = new Date(dateOfBirth) ;
-//         date.setDate(date.getDate() + 1);
-//         const fullName = firstName + " " + lastName;
-//         if (!request.file){
-//             const queryUser = 'UPDATE [User] SET first_name = @firstName, last_name = @lastName, gender = @gender, dateOfBirth = @dateOfBirth, phone = @phone, address = @address WHERE id_account = @idAccount'
-//             const userResult = await new sql.Request()
-//                                          .input('firstName', firstName)
-//                                          .input('lastName', lastName)
-//                                          .input('gender', gender)
-//                                          .input('dateOfBirth', date)
-//                                          .input('phone', phone)
-//                                          .input('address', address)
-//                                          .input('idAccount', request.userData.uuid)
-//                                          .query(queryUser);
-
-//             response.status(200).json({
-//                 "id": request.userData.uuid,
-//                 "contactFullName": fullName,
-//                 "gender": gender,
-//                 "accountType": 0,
-//                 "accountStatus": 1,
-//                 "date": dateOfBirth,
-//                 "link": ""
-//         })
-//     }else{
-//         const blob = firebase.bucket.file(request.file.originalname)
-//         const blobWriter = blob.createWriteStream({
-//             metadata: {
-//                 contentType: request.file.mimetype
-//             }
-//         })
-//         blobWriter.on('error', (err) => {
-//         response.status(500).json({
-//             "error": err.message
-//             });
-//         });
-
-//         blobWriter.on('finish', async () => {
-//         try {
-//             const signedUrls = await blob.getSignedUrl({
-//                 action: 'read',
-//                 expires: '03-01-2500' // Ngày hết hạn của đường dẫn
-//             });
-//             const publicUrl = signedUrls[0];
-//             image = image + publicUrl;
-//             const queryUser = 'UPDATE [User] SET first_name = @firstName, last_name = @lastName, gender = @gender, dateOfBirth = @dateOfBirth, phone = @phone, address = @address, image = @image WHERE id_account = @idAccount'
-//             const userResult = await new sql.Request()
-//                                      .input('firstName', firstName)
-//                                      .input('lastName', lastName)
-//                                      .input('gender', gender)
-//                                      .input('dateOfBirth', date)
-//                                      .input('phone', phone)
-//                                      .input('address', address)
-//                                      .input('idAccount', request.userData.uuid)
-//                                      .input('image', image)
-//                                      .query(queryUser);
-
-//             response.status(201).json({
-//                 "id": request.userData.uuid,
-//                 "contactFullName": fullName,
-//                 "gender": gender,
-//                 "accountType": 0,
-//                 "accountStatus": 1,
-//                 "date": dateOfBirth,
-//                 "link": image
-//             })
-//         } catch (err) {
-//             response.status(500).json({
-//                 "error": err.message
-//             });
-//         }
-//     });
-
-//      blobWriter.end(request.file.buffer);
-//     }
-//     }catch(error){
-//         console.log(error);
-//         response.status(500).json({
-//             "error": 'Internal Server Error'
-//         })
-//     }
-
-// })
-
-// router.delete('/delete-profile', checkAuth, checkRole, async (request, response) => {
-//     try{
-//         const queryUser = 'DELETE FROM [User] WHERE id_account = @idAccount'
-//         const userResult = await new sql.Request()
-//                                         .input('idAccount', request.userData.uuid)
-//                                         .query(queryUser);
-
-//         response.status(200).json({
-//             "message": "Deleted successfull!"
-//         })
-//     }catch(error){
-//         console.log(error);
-//         response.status(500).json({
-//             "error": 'Internal Server Error'
-//         })
-//     }
-// })
 
 module.exports = router;

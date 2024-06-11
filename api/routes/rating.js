@@ -70,17 +70,16 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
     await transaction
       .begin()
       .then(async () => {
-        const userid = await checkOrderExistAndGetUserid(
+        await checkOrderExistAndGetUserid(
           transaction,
           order_id,
-          request.userData.uuid
+          request.user_id
         );
         const orderDetail = await getOrderDetailByID(transaction, order_id);
         // Kiểm tra dữ liệu đầu vào
         const new_order_items = await checkValidOrder(orderDetail, order_items);
         //kiểm tra xem đã đánh giá chưa
-        await checkRatingExist(transaction, order_id, userid);
-        console.log("new_order_items: ", new_order_items);
+        await checkRatingExist(transaction, order_id, request.user_id);
         for (const order_item of new_order_items) {
           const rating_id = await addRating(
             transaction,
@@ -89,14 +88,13 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
             order_item.detailed_rating,
             order_item.product_sku_option,
             order_item.productSKUID,
-            userid
+            request.user_id
           );
+
           if (order_item.images && order_item.images.length > 0) {
-            await Promise.all(
-              order_item.images.map(async (image) => {
-                await insertRatingMedia(transaction, rating_id, image);
-              })
-            );
+            for (const image of order_item.images) {
+              await insertRatingMedia(transaction, rating_id, image);
+            }
           }
           console.log("rating_id: ", rating_id);
         }
@@ -191,18 +189,18 @@ async function checkValidOrder(order_detail, order_items) {
   }
   return order_items;
 }
-async function checkOrderExistAndGetUserid(transaction, orderID, idAccount) {
+async function checkOrderExistAndGetUserid(transaction, orderID, user_id) {
   try {
     const query = `
     SELECT
     u.id AS userid
     FROM [User] AS u
     JOIN [Order] AS o ON u.id = o.idUser
-    WHERE u.id_account = @idAccount AND o.id = @orderID
+    WHERE u.id = @user_id AND o.id = @orderID
     `;
     const result = await transaction
       .request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .input("orderID", orderID)
       .query(query);
     if (result.recordset.length === 0) {
@@ -378,12 +376,12 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
     await transaction
       .begin()
       .then(async () => {
-        const userid = await checkRatingExistAndGetUserid(
+        await checkRatingExistAndGetUserid(
           transaction,
           rating_id,
-          request.userData.uuid
+          request.user_id
         );
-        console.log("userid: ", userid);
+        console.log("userid: ", request.user_id);
         const list_image = await getImages(transaction, rating_id);
         const images_input = new_data_input.images;
         if (Array.isArray(images_input)) {
@@ -491,7 +489,7 @@ function checkRatingInput(dataInput) {
     throw error;
   }
 }
-async function checkRatingExistAndGetUserid(transaction, rating_id, idAccount) {
+async function checkRatingExistAndGetUserid(transaction, rating_id, user_id) {
   try {
     const query = `
     SELECT
@@ -499,11 +497,11 @@ async function checkRatingExistAndGetUserid(transaction, rating_id, idAccount) {
     r.edit_date
     FROM [User] AS u
     JOIN Rating AS r ON u.id = r.id_user
-    WHERE u.id_account = @idAccount AND r.id = @rating_id
+    WHERE u.id = @user_id AND r.id = @rating_id
     `;
     const result = await transaction
       .request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .input("rating_id", rating_id)
       .query(query);
     if (result.recordset.length === 0) {
@@ -512,7 +510,6 @@ async function checkRatingExistAndGetUserid(transaction, rating_id, idAccount) {
     if (result.recordset[0].edit_date !== null) {
       throw "Rating edited before";
     }
-    return result.recordset[0].userid;
   } catch (error) {
     throw error;
   }
@@ -764,10 +761,10 @@ router.get(
       JOIN ProductSku AS ps ON r.product_sku_id = ps.id
       JOIN Product AS p ON ps.idProduct = p.id
       LEFT JOIN RatingMedia AS rm ON r.id = rm.id_rating
-      WHERE u.id_account = @idAccount
+      WHERE u.id = @user_id
       `;
       const result = await new sql.Request()
-        .input("idAccount", request.userData.uuid)
+        .input("user_id", request.user_id)
         .query(query);
       const resultMap = {};
       const rating_count = [0, 0, 0, 0, 0];
@@ -922,11 +919,11 @@ router.get(
       JOIN ProductSku AS ps ON r.product_sku_id = ps.id
       JOIN Product AS p ON ps.idProduct = p.id
       LEFT JOIN RatingMedia AS rm ON r.id = rm.id_rating
-      WHERE o.id = @order_id AND u.id_account = @idAccount
+      WHERE o.id = @order_id AND u.id = @user_id
       `;
       const result = await new sql.Request()
         .input("order_id", order_id)
-        .input("idAccount", request.userData.uuid)
+        .input("user_id", request.user_id)
         .query(query);
       const resultMap = {};
       const rating_count = [0, 0, 0, 0, 0];

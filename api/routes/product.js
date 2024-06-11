@@ -362,11 +362,7 @@ router.get(
   checkRole,
   async (request, response) => {
     try {
-      const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await new sql.Request()
-        .input("idAccount", request.userData.uuid)
-        .query(queryUser);
-      const userid = userResult.recordset[0].id;
+      const userid = request.user_id;
       console.log("userid: ", userid);
       var offset = parseInt(request.query.offset) || 0;
       var limit = parseInt(request.query.limit) || 10;

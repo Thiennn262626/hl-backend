@@ -23,20 +23,17 @@ router.post("/add", checkAuth, checkRole, async (request, response) => {
     var isDefault = 0;
     await checkAddressValidated(cityID, districtID, wardID);
 
-    const receiverEmail = await getEmailByID(
-      receiverEmailID,
-      request.userData.uuid
-    );
+    const receiverEmail = await getEmailByID(receiverEmailID, request.user_id);
 
     const query = `
     SELECT 1
     FROM [User]
     JOIN [AddressReceive] ON [User].id = AddressReceive.id_user
-    WHERE [User].id_account = @idAccount
+    WHERE [User].id = @user_id
     `;
 
     const result = await new sql.Request()
-      .input("idAccount", request.userData.uuid)
+      .input("user_id", request.user_id)
       .query(query);
 
     if (result.recordset.length === 0) {
@@ -62,7 +59,7 @@ router.post("/add", checkAuth, checkRole, async (request, response) => {
         @wardName,
         @wardID
        FROM [User]
-       WHERE [User].id_account = @idAccount
+       WHERE [User].id = @user_id
        `;
     await new sql.Request()
       .input("receiverPhone", receiverPhone)
@@ -79,7 +76,7 @@ router.post("/add", checkAuth, checkRole, async (request, response) => {
       .input("createdDate", new Date())
       .input("wardName", wardName)
       .input("wardID", wardID)
-      .input("idAccount", request.userData.uuid)
+      .input("user_id", request.user_id)
       .query(queryAddress);
 
     response.status(200).json({
@@ -94,23 +91,22 @@ router.post("/add", checkAuth, checkRole, async (request, response) => {
   }
 });
 
-async function getEmailByID(receiverEmailID, idAccount) {
+async function getEmailByID(receiverEmailID, user_id) {
   try {
     const query = `
     SELECT Email.emailAddress
     FROM [User]
     LEFT JOIN Email ON [User].id = Email.idUser
-    WHERE [User].id_account = @idAccount AND Email.id = @receiverEmailID AND Email.isVerify = 1
+    WHERE [User].id = @user_id AND Email.id = @receiverEmailID AND Email.isVerify = 1
     `;
     const result = await new sql.Request()
-      .input("idAccount", idAccount)
+      .input("user_id", user_id)
       .input("receiverEmailID", receiverEmailID)
       .query(query);
 
     if (result.recordset.length === 0) {
       throw "Receiver Email is not existing or not verified";
     } else {
-      console.log(result.recordset[0].emailAddress);
       return result.recordset[0].emailAddress;
     }
   } catch (error) {
@@ -133,14 +129,13 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
     const addressDetail = request.body.addressDetail;
     const addressLabel = request.body.addressLabel;
     await checkAddressValidated(cityID, districtID, wardID);
-    const receiverEmail = await getEmailByID(
-      receiverEmailID,
-      request.userData.uuid
-    );
+    const receiverEmail = await getEmailByID(receiverEmailID, request.user_id);
 
-    const query = "SELECT * FROM AddressReceive WHERE id = @addressID";
+    const query =
+      "SELECT * FROM AddressReceive WHERE id = @addressID AND id_user = @user_id";
     const result = await new sql.Request()
       .input("addressID", receiverAddressID)
+      .input("user_id", request.user_id)
       .query(query);
 
     if (result.recordset.length === 0) {
@@ -149,44 +144,34 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
         message: "Receiver Address is not existing",
       });
     } else {
-      const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await new sql.Request()
-        .input("idAccount", request.userData.uuid)
-        .query(queryUser);
-      if (userResult.recordset[0].id == result.recordset[0].id_user) {
-        const queryAddress =
-          "UPDATE AddressReceive SET receiverPhone = @receiverPhone, receiverEmail = @receiverEmail, receiverContactName = @receiverContactName, cityName = @cityName, districtName = @districtName, addressDetail = @addressDetail, addressLabel = @addressLabel, cityID = @cityID, districtID = @districtID, createdDate = @createdDate, wardName = @wardName, wardID = @wardID, receiverEmailID = @receiverEmailID WHERE id = @addressID";
-        const addressResult = await new sql.Request()
-          .input("receiverPhone", receiverPhone)
-          .input("receiverEmailID", receiverEmailID)
-          .input("receiverEmail", receiverEmail)
-          .input("receiverContactName", receiverContactName)
-          .input("cityName", cityName)
-          .input("cityID", cityID)
-          .input("districtName", districtName)
-          .input("districtID", districtID)
-          .input("addressDetail", addressDetail)
-          .input("addressLabel", addressLabel)
-          .input("addressID", receiverAddressID)
-          .input("wardName", wardName)
-          .input("wardID", wardID)
-          .input("createdDate", new Date())
-          .query(queryAddress);
+      const queryAddress =
+        "UPDATE AddressReceive SET receiverPhone = @receiverPhone, receiverEmail = @receiverEmail, receiverContactName = @receiverContactName, cityName = @cityName, districtName = @districtName, addressDetail = @addressDetail, addressLabel = @addressLabel, cityID = @cityID, districtID = @districtID, createdDate = @createdDate, wardName = @wardName, wardID = @wardID, receiverEmailID = @receiverEmailID WHERE id = @addressID";
+      const addressResult = await new sql.Request()
+        .input("receiverPhone", receiverPhone)
+        .input("receiverEmailID", receiverEmailID)
+        .input("receiverEmail", receiverEmail)
+        .input("receiverContactName", receiverContactName)
+        .input("cityName", cityName)
+        .input("cityID", cityID)
+        .input("districtName", districtName)
+        .input("districtID", districtID)
+        .input("addressDetail", addressDetail)
+        .input("addressLabel", addressLabel)
+        .input("addressID", receiverAddressID)
+        .input("wardName", wardName)
+        .input("wardID", wardID)
+        .input("createdDate", new Date())
+        .query(queryAddress);
 
-        response.status(200).json({
-          status: 200,
-          message: "Update Receiver Address Success",
-        });
-      } else {
-        response.status(500).json({
-          errorCode: "Receiver Address is not existing",
-          message: "Receiver Address is not existing",
-        });
-      }
+      response.status(200).json({
+        status: 200,
+        message: "Update Receiver Address Success",
+      });
     }
   } catch (error) {
+    console.log(error);
     response.status(500).json({
-      errorCode: "Internal Server Error",
+      errorCode: "Error Address Update",
     });
   }
 });
@@ -194,9 +179,11 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
 router.post("/delete", checkAuth, checkRole, async (request, response) => {
   try {
     const receiverAddressID = request.body.receiverAddressID;
-    const query = "SELECT * FROM AddressReceive WHERE id = @addressID";
+    const query =
+      "SELECT * FROM AddressReceive WHERE id = @addressID AND id_user = @user_id";
     const result = await new sql.Request()
       .input("addressID", receiverAddressID)
+      .input("user_id", request.user_id)
       .query(query);
 
     if (result.recordset.length === 0) {
@@ -205,46 +192,35 @@ router.post("/delete", checkAuth, checkRole, async (request, response) => {
         message: "Receiver Address is not existing",
       });
     } else {
-      const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-      const userResult = await new sql.Request()
-        .input("idAccount", request.userData.uuid)
-        .query(queryUser);
+      if (result.recordset[0].isDefault === 1) {
+        const queryAddressList =
+          "SELECT id FROM AddressReceive WHERE id_user = @user_id ORDER BY isDefault DESC, createdDate DESC";
+        const resultAddressList = await new sql.Request()
+          .input("user_id", request.user_id)
+          .query(queryAddressList);
 
-      if (userResult.recordset[0].id == result.recordset[0].id_user) {
-        if (result.recordset[0].isDefault === 1) {
-          const queryAddressList =
-            "SELECT id FROM AddressReceive WHERE id_user = @userID ORDER BY isDefault DESC, createdDate DESC";
-          const resultAddressList = await new sql.Request()
-            .input("userID", userResult.recordset[0].id)
-            .query(queryAddressList);
-
-          if (resultAddressList.recordset.length > 1) {
-            const queryAddress =
-              "UPDATE AddressReceive SET isDefault = @isDefault, createdDate = @createdDate WHERE id = @addressID";
-            const addressResult = await new sql.Request()
-              .input("isDefault", 1)
-              .input("createdDate", new Date())
-              .input("addressID", resultAddressList.recordset[1].id)
-              .query(queryAddress);
-          }
+        if (resultAddressList.recordset.length > 1) {
+          const queryAddress =
+            "UPDATE AddressReceive SET isDefault = @isDefault, createdDate = @createdDate WHERE id = @addressID";
+          const addressResult = await new sql.Request()
+            .input("isDefault", 1)
+            .input("createdDate", new Date())
+            .input("addressID", resultAddressList.recordset[1].id)
+            .query(queryAddress);
         }
-        const queryAddress = "DELETE FROM AddressReceive WHERE id = @addressID";
-        const addressResult = await new sql.Request()
-          .input("addressID", receiverAddressID)
-          .query(queryAddress);
-
-        response.status(200).json({
-          status: 200,
-          message: "Delete Receiver Address Success",
-        });
-      } else {
-        response.status(500).json({
-          errorCode: "Receiver Address is not existing",
-          message: "Receiver Address is not existing",
-        });
       }
+      const queryAddress = "DELETE FROM AddressReceive WHERE id = @addressID";
+      const addressResult = await new sql.Request()
+        .input("addressID", receiverAddressID)
+        .query(queryAddress);
+
+      response.status(200).json({
+        status: 200,
+        message: "Delete Receiver Address Success",
+      });
     }
   } catch (error) {
+    console.log(error);
     response.status(500).json({
       error: "Internal Server Error",
     });
@@ -259,14 +235,10 @@ router.post("/add-default", checkAuth, checkRole, async (request, response) => {
     const AddressResult = await new sql.Request()
       .input("addressID", receiverAddressID)
       .query(Addressquery);
-    const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await new sql.Request()
-      .input("idAccount", request.userData.uuid)
-      .query(queryUser);
     const queryAddressList =
-      "SELECT id FROM AddressReceive WHERE id_user = @userID AND isDefault = 1 ORDER BY isDefault DESC, createdDate DESC";
+      "SELECT id FROM AddressReceive WHERE id_user = @user_id AND isDefault = 1 ORDER BY isDefault DESC, createdDate DESC";
     const resultAddressList = await new sql.Request()
-      .input("userID", userResult.recordset[0].id)
+      .input("user_id", request.user_id)
       .query(queryAddressList);
 
     if (
@@ -323,17 +295,12 @@ router.get("/get-list", checkAuth, checkRole, async (request, response) => {
     }
 
     offset = (offset - 1) * limit;
-    const queryUser = "SELECT id FROM [User] WHERE id_account = @idAccount";
-    const userResult = await new sql.Request()
-      .input("idAccount", request.userData.uuid)
-      .query(queryUser);
-
     const query =
-      "SELECT id AS receiverAddressID, receiverContactName, receiverPhone, receiverEmail, receiverEmailID, addressLabel, id_user AS userID, isDefault, cityName, districtName, cityID, districtID, addressDetail, wardName, wardID FROM AddressReceive WHERE id_user = @userID ORDER BY isDefault DESC, createdDate DESC OFFSET @page ROWS FETCH NEXT @pageSize ROWS ONLY";
+      "SELECT id AS receiverAddressID, receiverContactName, receiverPhone, receiverEmail, receiverEmailID, addressLabel, id_user AS userID, isDefault, cityName, districtName, cityID, districtID, addressDetail, wardName, wardID FROM AddressReceive WHERE id_user = @user_id ORDER BY isDefault DESC, createdDate DESC OFFSET @page ROWS FETCH NEXT @pageSize ROWS ONLY";
     const result = await new sql.Request()
       .input("page", parseInt(offset))
       .input("pageSize", parseInt(limit))
-      .input("userID", userResult.recordset[0].id)
+      .input("user_id", request.user_id)
       .query(query);
 
     response.status(200).json({

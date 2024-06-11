@@ -2,7 +2,13 @@ const { sql } = require("../config");
 
 async function checkRole(request, response, next) {
   try {
-    const queryAccount = "SELECT * FROM Account WHERE id = @id";
+    const queryAccount = `
+    SELECT u.id AS user_id,
+    a.role AS role,
+    a.isVerify AS isVerify
+    FROM Account AS a
+    LEFT JOIN [User] AS u on u.id_account = a.id
+    WHERE a.id = @id`;
     const accountResult = await new sql.Request()
       .input("id", request.userData.uuid)
       .query(queryAccount);
@@ -11,7 +17,14 @@ async function checkRole(request, response, next) {
       accountResult.recordset.length === 1 &&
       accountResult.recordset[0].role === 0
     ) {
-      next();
+      if (accountResult.recordset[0].isVerify === 0) {
+        return response.status(401).json({
+          message: "Ban chua xac thuc tai khoan",
+        });
+      } else {
+        request.user_id = accountResult.recordset[0].user_id;
+        next();
+      }
     } else {
       response.status(401).json({
         message: "Ban khong co quyen",
