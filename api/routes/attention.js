@@ -15,6 +15,9 @@ router.get("/attention-product", checkAuth, checkRole, async (req, res) => {
   try {
     const { user_id } = req.user_id;
     const product_id = req.query.product_id;
+    res.status(200).json({
+      message: "Attention product",
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({
