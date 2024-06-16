@@ -920,7 +920,6 @@ router.get("/get-product-attribute", async (request, response) => {
       "product_attribute_" + productID
     );
     if (!responseData) {
-      //;
       responseData = await getProductAttributes(productID);
       await RedisService.setJson(
         "product_attribute_" + productID,
@@ -959,29 +958,31 @@ async function getProductAttributes(productID) {
   const responseData = [];
 
   result.recordset.forEach((row) => {
-    const existingAttribute = responseData.find(
-      (attr) => attr.attributeID === row.attributeID
-    );
+    if (row.locAttributeName !== "" && row.locAttributeValueName !== "") {
+      const existingAttribute = responseData.find(
+        (attr) => attr.attributeID === row.attributeID
+      );
 
-    if (existingAttribute) {
-      existingAttribute.attributeValue.push({
-        attributeValueID: row.attributeValueID,
-        locAttributeValueName: row.locAttributeValueName,
-        locAttributeValueDescription: row.locAttributeValueDescription,
-      });
-    } else {
-      responseData.push({
-        attributeID: row.attributeID,
-        locAttributeName: row.locAttributeName,
-        locAttributeDescription: row.locAttributeDescription,
-        attributeValue: [
-          {
-            attributeValueID: row.attributeValueID,
-            locAttributeValueName: row.locAttributeValueName,
-            locAttributeValueDescription: row.locAttributeValueDescription,
-          },
-        ],
-      });
+      if (existingAttribute) {
+        existingAttribute.attributeValue.push({
+          attributeValueID: row.attributeValueID,
+          locAttributeValueName: row.locAttributeValueName,
+          locAttributeValueDescription: row.locAttributeValueDescription,
+        });
+      } else {
+        responseData.push({
+          attributeID: row.attributeID,
+          locAttributeName: row.locAttributeName,
+          locAttributeDescription: row.locAttributeDescription,
+          attributeValue: [
+            {
+              attributeValueID: row.attributeValueID,
+              locAttributeValueName: row.locAttributeValueName,
+              locAttributeValueDescription: row.locAttributeValueDescription,
+            },
+          ],
+        });
+      }
     }
   });
 

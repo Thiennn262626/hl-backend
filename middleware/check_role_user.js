@@ -19,15 +19,16 @@ async function checkRole(request, response, next) {
     ) {
       if (accountResult.recordset[0].isVerify === 0) {
         return response.status(401).json({
-          message: "Ban chua xac thuc tai khoan",
+          message: "Account is not verify",
         });
       } else {
+        console.log("user_id: ", accountResult.recordset[0].user_id);
         request.user_id = accountResult.recordset[0].user_id;
         next();
       }
     } else {
       response.status(401).json({
-        message: "Ban khong co quyen",
+        message: "Unauthorized Access",
       });
     }
   } catch (error) {

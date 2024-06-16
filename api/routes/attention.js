@@ -6,22 +6,56 @@ const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 module.exports = router;
 
-// xem sản phẩm - check cache 5p - 1đ
-// mua sản phẩm thành công - 3đ
-// yêu thích sản phẩm - check cache 3p - 2đ
-// thêm vào giỏ hàng - 3p - 5đ
+const RedisService = require("../../services/redis.service");
 
-router.get("/attention-product", checkAuth, checkRole, async (req, res) => {
+// xem sản phẩm - check cache 5p - 1đ
+
+router.post(
+  "/attention-product",
+  checkAuth,
+  checkRole,
+  async (request, response) => {
+    try {
+      const user_id = request.user_id;
+      const product_id = request.query.productID;
+      const key = `attention_${user_id}_${product_id}`;
+      const attention = await RedisService.getJson(key);
+      if (attention) {
+        return response.status(200).json({
+          message: "expired cache",
+        });
+      } else {
+        await setProductAttention(user_id, product_id);
+        await RedisService.setJson(key, true);
+        await RedisService.expire(key, 180);
+
+        return response.status(200).json({
+          message: "success",
+          product_id: product_id,
+        });
+      }
+    } catch (error) {
+      console.log(error);
+      response.status(500).json({
+        error: "Product not found",
+      });
+    }
+  }
+);
+
+async function setProductAttention(user_id, product_id) {
   try {
-    const { user_id } = req.user_id;
-    const product_id = req.query.product_id;
-    res.status(200).json({
-      message: "Attention product",
-    });
+    console.log(user_id, product_id);
+    const query = `INSERT INTO Attention (user_id, product_id, createdDate) VALUES (@user_id, @product_id, @createdDate)`;
+    await new sql.Request()
+      .input("user_id", user_id)
+      .input("product_id", product_id)
+      .input("createdDate", new Date())
+      .query(query);
   } catch (error) {
     console.log(error);
-    res.status(500).json({
-      error: "Internal Server Error",
-    });
+    throw "not found product";
   }
-});
+}
+
+//input: id san pham va khoang thoi gian trong ngay

@@ -67,7 +67,7 @@ async function getProfile(user_id) {
       if (!resultMap[userID]) {
         resultMap[userID] = {
           userID: userID,
-          userLoginID: item.userLoginID,
+          userLoginID: user_id,
           contactFullName: item.contactFullName,
           slogan: item.slogan ? item.slogan : null,
           gender: item.gender ? item.gender : null,
@@ -150,7 +150,7 @@ router.post(
       const toDay = new Date();
       response.status(201).json({
         userID: request.user_id,
-        userLoginID: resultAccount.recordset[0].userLogin,
+        userLoginID: request.user_id,
         contactFullName: contactFullName,
         slogan: result.recordset[0].slogan,
         gender: result.recordset[0].gender,
@@ -255,6 +255,7 @@ router.post(
   checkRole,
   async (request, response) => {
     try {
+      const user_id = request.user_id;
       if (!request.file) {
         response.status(400).json({
           errorCode: "MSG0084",
@@ -326,25 +327,23 @@ router.post(
       await transaction
         .begin()
         .then(async () => {
-          await checkEmailIsExisting(
+          let { is_default, emailID } = await checkEmailIsExisting(
             emailAddress,
             request.user_id,
             transaction
           );
-          const isDefault = await checkUserHaveEmail(
-            request.user_id,
-            transaction
-          );
-          const emailID = await createEmail(
-            request.user_id,
-            emailAddress,
-            isDefault,
-            transaction
-          );
-
+          console.log("is_default, emailID: ", is_default, emailID);
           var otp = mail_util.getRandomInt();
           mail_util.sendOTP(emailAddress, otp);
           const expired = new Date(createdDate.getTime() + 30000);
+          if (!emailID) {
+            emailID = await createEmail(
+              request.user_id,
+              emailAddress,
+              is_default,
+              transaction
+            );
+          }
           const OtpId = await createOtpEmail(
             otp,
             createdDate,
@@ -446,51 +445,41 @@ async function createEmail(user_id, emailAddress, isDefault, transaction) {
   }
 }
 
-async function checkUserHaveEmail(user_id, transaction) {
-  try {
-    const query = `
-        SELECT 1
-        FROM [User]
-        LEFT JOIN Email ON [User].id = Email.idUser
-        WHERE [User].id = @user_id AND Email.isVerify = 1
-        `;
-    const result = await transaction
-      .request()
-      .input("user_id", user_id)
-      .query(query);
-    if (result.recordset.length === 0) {
-      return 1;
-    }
-    return 0;
-  } catch (error) {
-    console.log(error);
-    throw "checkUserHaveEmail";
-  }
-}
-
 async function checkEmailIsExisting(emailAddress, user_id, transaction) {
   try {
-    const queryEmail = `SELECT
-      Email.id AS emailID,
-      Email.emailAddress,
-      Email.isVerify
+    const queryEmail = `
+      SELECT
+        Email.id AS emailID,
+        Email.emailAddress,
+        Email.isVerify,
+        Email.isDefault
       FROM [User] 
-      LEFT JOIN Email ON [User].id = Email.idUser
-      WHERE [User].id = @user_id AND Email.emailAddress = @email
-      order by Email.isVerify desc
-      `;
+      JOIN Email ON [User].id = Email.idUser
+      WHERE [User].id = @user_id
+    `;
+
     const resultEmail = await transaction
       .request()
       .input("user_id", user_id)
-      .input("email", emailAddress)
       .query(queryEmail);
-    if (resultEmail.recordset.length !== 0) {
-      if (resultEmail.recordset[0].isVerify === 1) {
-        throw "Email is existing";
-      } else {
-        return [resultEmail.recordset[0].emailID, 0];
+
+    let isDefault = 1;
+    let emailID = null;
+
+    for (const item of resultEmail.recordset) {
+      if (item.isDefault === 1) {
+        isDefault = 0;
+      }
+      if (item.emailAddress === emailAddress) {
+        if (item.isVerify === 1) {
+          throw "Email is existing and verified";
+        } else {
+          emailID = item.emailID;
+          break;
+        }
       }
     }
+    return { is_default: isDefault, emailID: emailID };
   } catch (error) {
     throw error;
   }
@@ -503,14 +492,15 @@ router.post(
   async (request, response) => {
     try {
       const emailID = request.body.emailID;
-
-      const queryEmail = "SELECT * FROM Email WHERE id = @emailID";
+      const queryEmail =
+        "SELECT * FROM Email WHERE id = @emailID AND idUser = @user_id";
       const resultEmail = await new sql.Request()
         .input("emailID", emailID)
+        .input("user_id", request.user_id)
         .query(queryEmail);
 
       if (resultEmail.recordset.length === 0) {
-        response.status(400).json({
+        return response.status(400).json({
           errorCode: "MSG0091",
           message: "Email is not existing",
         });
@@ -519,7 +509,8 @@ router.post(
         const resultQueryDeleteEmail = await new sql.Request()
           .input("idEmail", emailID)
           .query(queryDeleteEmail);
-        response.status(200).json({
+        console.log("resultQueryDeleteEmail: ", resultQueryDeleteEmail);
+        return response.status(200).json({
           status: 200,
           message: "Delete Email Success",
         });
