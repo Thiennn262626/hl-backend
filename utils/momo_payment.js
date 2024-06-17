@@ -2,10 +2,12 @@ const crypto = require("crypto");
 
 const axios = require("axios");
 
+require("dotenv").config();
+
 async function createMomoPayment(orderId, amount) {
-  const accessKey = "klm05TvNBzhg7h7j";
-  const secretKey = "at67qH6mk8w5Y1nAyMoYKMWACiEi2bsa";
-  const partnerCode = "MOMOBKUN20180529";
+  const accessKey = process.env.MOMO_ACCESS_KEY;
+  const secretKey = process.env.MOMO_SECRET_KEY;
+  const partnerCode = process.env.MOMO_PARTNER_CODE;
   const requestId = "RD" + orderId + Date.now();
   const lang = "vi";
   const orderInfo = "Thanh toán hóa đơn của HLSHOP: " + orderId;
@@ -46,13 +48,12 @@ async function createMomoPayment(orderId, amount) {
 
   try {
     const url = "https://test-payment.momo.vn/v2/gateway/api/create";
-    // url = "https://test-payment.momo.vn/gateway/api/developer-web/init";
     const response = await axios.post(url, requestBody, {
       headers: {
         "Content-Type": "application/json",
       },
     });
-
+    console.log("createMomoPayment: response = ", response.data);
     const resultData = {
       signature: signature,
       orderId: response.data.orderId,
@@ -112,20 +113,11 @@ function generateSignature({
 }
 
 async function refundOrderPayment(amount, transId, orderIdOrder, requestId) {
-  var secretKey = "at67qH6mk8w5Y1nAyMoYKMWACiEi2bsa";
-  var accessKey = "klm05TvNBzhg7h7j";
+  var secretKey = process.env.MOMO_SECRET_KEY;
+  var accessKey = process.env.MOMO_ACCESS_KEY;
+  var partnerCode = process.env.MOMO_PARTNER_CODE;
   var orderId = orderIdOrder + "79";
   var description = "hoan tien hoa don: " + orderId;
-  var partnerCode = "MOMOBKUN20180529";
-
-  console.log("refundOrderPayment");
-  console.log("accessKey", accessKey);
-  console.log("amount", amount);
-  console.log("description", description);
-  console.log("orderId", orderId);
-  console.log("partnerCode", partnerCode);
-  console.log("requestId", requestId);
-  console.log("transId", transId);
 
   var rawSignature =
     "accessKey=" +
@@ -143,7 +135,6 @@ async function refundOrderPayment(amount, transId, orderIdOrder, requestId) {
     "&transId=" +
     transId;
 
-  // const crypto = require("crypto");
   var signature = crypto
     .createHmac("sha256", secretKey)
     .update(rawSignature)
@@ -159,7 +150,6 @@ async function refundOrderPayment(amount, transId, orderIdOrder, requestId) {
     description: description,
     signature: signature,
   });
-
   try {
     const response = await axios.post(
       "https://test-payment.momo.vn/v2/gateway/api/refund",
@@ -170,7 +160,6 @@ async function refundOrderPayment(amount, transId, orderIdOrder, requestId) {
         },
       }
     );
-
     if (response.data.resultCode != 0) {
       throw "refundOrderPayment error";
     }
@@ -183,7 +172,6 @@ async function refundOrderPayment(amount, transId, orderIdOrder, requestId) {
       resultCode: response.data.resultCode,
       message: response.data.message,
       responseTime: response.data.responseTime,
-      signature: response.data.signature,
     };
     console.log(
       "https://test-payment.momo.vn/v2/gateway/api/refund: resultData = ",
