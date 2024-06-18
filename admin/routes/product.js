@@ -97,7 +97,7 @@ router.post(
             id_product,
             array_attribute
           );
-          // await transaction.commit();
+          await transaction.commit();
           response.status(200).json({
             status: 200,
             message: "Create product successfully",
