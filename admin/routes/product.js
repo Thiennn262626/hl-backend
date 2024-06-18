@@ -26,13 +26,15 @@ router.post(
       const name = jsonData.productName;
       const slogan = jsonData.productSlogan;
       const description = jsonData.productDescription;
-      const notes = jsonData.productNotes;
+      const notes = jsonData.productNotes || "productNotes";
       const madeIn = jsonData.productMadeIn;
-      const uses = jsonData.productUses;
-      const ingredient = jsonData.productIngredient;
-      const objectsOfUse = jsonData.productObjectsOfUse;
-      const preserve = jsonData.productPreserve;
-      const instructionsForUse = jsonData.productInstructionsForUse;
+      const uses = jsonData.productUses || "productUses";
+      const ingredient = jsonData.productIngredient || "productIngredient";
+      const objectsOfUse =
+        jsonData.productObjectsOfUse || "productObjectsOfUse";
+      const preserve = jsonData.productPreserve || "productPreserve";
+      const instructionsForUse =
+        jsonData.productInstructionsForUse || "productInstructionsForUse";
       const height = jsonData.productHeight;
       const width = jsonData.productWidth;
       const length = jsonData.productLength;
@@ -75,10 +77,10 @@ router.post(
             if (i === 0) {
               isDefault = 1;
             }
-            await updateMedia0(
+            await insertMedia(
               transaction,
               id_product,
-              MediaID.mediaID,
+              MediaID.media_url,
               isDefault
             );
           }
@@ -95,7 +97,7 @@ router.post(
             id_product,
             array_attribute
           );
-          await transaction.commit();
+          // await transaction.commit();
           response.status(200).json({
             status: 200,
             message: "Create product successfully",
@@ -128,151 +130,150 @@ router.post(
   }
 );
 
-async function insertProduct1(jsonData) {
-  try {
-    let transaction = new sql.Transaction();
-    const item_id = jsonData.item_id;
-    const name = jsonData.productName;
-    const slogan = jsonData.productSlogan;
-    const description = jsonData.productDescription;
-    const notes = jsonData.productNotes;
-    const madeIn = jsonData.productMadeIn;
-    const uses = jsonData.productUses;
-    const ingredient = jsonData.productIngredient;
-    const objectsOfUse = jsonData.productObjectsOfUse;
-    const preserve = jsonData.productPreserve;
-    const instructionsForUse = jsonData.productInstructionsForUse;
-    const height = jsonData.productHeight;
-    const width = jsonData.productWidth;
-    const length = jsonData.productLength;
-    const weight = jsonData.productWeight;
-    const sellQuantity = 0;
-    const createdDate = new Date();
-    const idCategory = jsonData.productCategoryID;
-    const idAccount = "89B43CEB-BA13-48FF-881C-0EF82880F569";
-    const attributes = jsonData.attributes;
-    const avatarMediaIDS = jsonData.avatarMediaIDS;
-    const productSKUs = jsonData.productSKUs;
-    await transaction
-      .begin()
-      .then(async () => {
-        const id_product = await insertProduct(
-          transaction,
-          name,
-          slogan,
-          description,
-          notes,
-          madeIn,
-          uses,
-          ingredient,
-          objectsOfUse,
-          preserve,
-          instructionsForUse,
-          height,
-          width,
-          length,
-          weight,
-          sellQuantity,
-          createdDate,
-          idCategory,
-          idAccount,
-          item_id
-        );
+// async function insertProduct1(jsonData) {
+//   try {
+//     let transaction = new sql.Transaction();
+//     const item_id = jsonData.item_id;
+//     const name = jsonData.productName;
+//     const slogan = jsonData.productSlogan;
+//     const description = jsonData.productDescription;
+//     const notes = jsonData.productNotes;
+//     const madeIn = jsonData.productMadeIn;
+//     const uses = jsonData.productUses;
+//     const ingredient = jsonData.productIngredient;
+//     const objectsOfUse = jsonData.productObjectsOfUse;
+//     const preserve = jsonData.productPreserve;
+//     const instructionsForUse = jsonData.productInstructionsForUse;
+//     const height = jsonData.productHeight;
+//     const width = jsonData.productWidth;
+//     const length = jsonData.productLength;
+//     const weight = jsonData.productWeight;
+//     const sellQuantity = 0;
+//     const createdDate = new Date();
+//     const idCategory = jsonData.productCategoryID;
+//     const idAccount = "89B43CEB-BA13-48FF-881C-0EF82880F569";
+//     const attributes = jsonData.attributes;
+//     const avatarMediaIDS = jsonData.avatarMediaIDS;
+//     const productSKUs = jsonData.productSKUs;
+//     await transaction
+//       .begin()
+//       .then(async () => {
+//         const id_product = await insertProduct(
+//           transaction,
+//           name,
+//           slogan,
+//           description,
+//           notes,
+//           madeIn,
+//           uses,
+//           ingredient,
+//           objectsOfUse,
+//           preserve,
+//           instructionsForUse,
+//           height,
+//           width,
+//           length,
+//           weight,
+//           sellQuantity,
+//           createdDate,
+//           idCategory,
+//           idAccount,
+//           item_id
+//         );
 
-        for (let i = 0; i < avatarMediaIDS.length; i++) {
-          var isDefault = 0;
-          const MediaID = avatarMediaIDS[i];
-          if (i === 0) {
-            isDefault = 1;
-          }
-          await updateMedia0(
-            transaction,
-            id_product,
-            MediaID.mediaID,
-            isDefault
-          );
-        }
+//         for (let i = 0; i < avatarMediaIDS.length; i++) {
+//           var isDefault = 0;
+//           const MediaID = avatarMediaIDS[i];
+//           if (i === 0) {
+//             isDefault = 1;
+//           }
+//           await updateMedia0(
+//             transaction,
+//             id_product,
+//             MediaID.mediaID,
+//             isDefault
+//           );
+//         }
 
-        const array_attribute = await insertProductAttributeAndValue(
-          transaction,
-          attributes,
-          id_product
-        );
-        await processProductSKU(
-          transaction,
-          productSKUs,
-          id_product,
-          array_attribute
-        );
-        await transaction.commit();
-      })
-      .catch(async (err) => {
-        await transaction.rollback();
-        throw err;
-      });
-    return {
-      status: 200,
-      message: "Create product successfully",
-    };
-  } catch (error) {
-    console.log(error);
-    if (error.code === "EREQUEST") {
-      return "Database error";
-    }
-    if (error.code === "EABORT") {
-      return "Invalid input data";
-    }
-    return error;
-  }
-}
+//         const array_attribute = await insertProductAttributeAndValue(
+//           transaction,
+//           attributes,
+//           id_product
+//         );
+//         await processProductSKU(
+//           transaction,
+//           productSKUs,
+//           id_product,
+//           array_attribute
+//         );
+//         await transaction.commit();
+//       })
+//       .catch(async (err) => {
+//         await transaction.rollback();
+//         throw err;
+//       });
+//     return {
+//       status: 200,
+//       message: "Create product successfully",
+//     };
+//   } catch (error) {
+//     console.log(error);
+//     if (error.code === "EREQUEST") {
+//       return "Database error";
+//     }
+//     if (error.code === "EABORT") {
+//       return "Invalid input data";
+//     }
+//     return error;
+//   }
+// }
 
-async function updateMedia0(transaction, id_product, MediaID, isDefault = 0) {
-  try {
-    const query = `
-      UPDATE Media
-      SET id_product = @id_product,
-      isDefault = @isDefault
-      WHERE id = @MediaID
-    `;
-    const result = await transaction
-      .request()
-      .input("id_product", id_product)
-      .input("MediaID", MediaID)
-      .input("isDefault", isDefault)
-      .query(query);
-  } catch (error) {
-    throw "Error update media Product";
-  }
-}
+// async function updateMedia0(transaction, id_product, MediaID, isDefault = 0) {
+//   try {
+//     const query = `
+//       UPDATE Media
+//       SET id_product = @id_product,
+//       isDefault = @isDefault
+//       WHERE id = @MediaID
+//     `;
+//     const result = await transaction
+//       .request()
+//       .input("id_product", id_product)
+//       .input("MediaID", MediaID)
+//       .input("isDefault", isDefault)
+//       .query(query);
+//   } catch (error) {
+//     throw "Error update media Product";
+//   }
+// }
 
-async function updateMedia(
+async function insertMedia(
   transaction,
   id_product,
-  MediaID,
-  productAttributeValueID,
-  title
+  linkString,
+  isDefault = 0,
+  title = "",
+  description = "",
+  productAttributeValueID
 ) {
   try {
     const query = `
-      UPDATE Media
-      SET id_product = @id_product,
-      productAttributeValueID = @productAttributeValueID,
-      title = @title,
-      description = @description,
-      isDefault = @isDefault
-      WHERE id = @MediaID
+    INSERT INTO Media(id_product, linkString, createdDate, productAttributeValueID, title, description, isDefault)
+    VALUES (@id_product, @linkString, @createdDate, @productAttributeValueID, @title, @title, @isDefault);
     `;
     const result = await transaction
       .request()
       .input("id_product", id_product)
-      .input("productAttributeValueID", productAttributeValueID)
+      .input("linkString", linkString)
+      .input("createdDate", new Date())
+      .input("isDefault", isDefault)
       .input("title", title)
-      .input("description", title)
-      .input("MediaID", MediaID)
-      .input("isDefault", 0)
+      .input("description", description)
+      .input("productAttributeValueID", productAttributeValueID)
       .query(query);
   } catch (error) {
-    throw "Error update media productAttributeValue";
+    console.log(error);
+    throw "Error create media";
   }
 }
 
@@ -298,7 +299,7 @@ async function processProductSKU(
           i < array_attribute[0].productAttributeValueIDs.length;
           i++
         ) {
-          const id_product_attribute1 = array_attribute[0].productAttributeID;
+          // const id_product_attribute1 = array_attribute[0].productAttributeID;
           const id_product_attribute_value1 =
             array_attribute[0].productAttributeValueIDs[i];
           await insertProductSKU(
@@ -315,7 +316,7 @@ async function processProductSKU(
             i < array_attribute[0].productAttributeValueIDs.length;
             i++
           ) {
-            const id_product_attribute1 = array_attribute[0].productAttributeID;
+            // const id_product_attribute1 = array_attribute[0].productAttributeID;
             const id_product_attribute_value1 =
               array_attribute[0].productAttributeValueIDs[i];
             for (
@@ -323,8 +324,8 @@ async function processProductSKU(
               j < array_attribute[1].productAttributeValueIDs.length;
               j++
             ) {
-              const id_product_attribute2 =
-                array_attribute[1].productAttributeID;
+              // const id_product_attribute2 =
+              //   array_attribute[1].productAttributeID;
               const id_product_attribute_value2 =
                 array_attribute[1].productAttributeValueIDs[j];
               await insertProductSKU(
@@ -355,6 +356,7 @@ async function insertProductSKU(
   id_product_attribute2
 ) {
   try {
+    console.log(productSKUs);
     const query = `
       INSERT INTO ProductSKU(quantity, sold, price, priceBefore, enable, idProduct, idAttributeValue1, idAttributeValue2)
       OUTPUT inserted.id AS id_product_sku 
@@ -381,7 +383,7 @@ async function insertProductSKU(
     return result.recordset[0].id_product_sku;
   } catch (error) {
     console.log(error);
-    throw "Error insert product sku: ";
+    throw "Error insert product sku";
   }
 }
 
@@ -417,13 +419,15 @@ async function insertProductAttributeAndValue(
             id_product_attribute_value
           );
           if (i === 0) {
-            console.log("i = 0");
-            await updateMedia(
+            console.log("i = 0", attributeValue.media_url);
+            await insertMedia(
               transaction,
               id_product,
-              attributeValue.mediaID,
-              id_product_attribute_value,
-              attributeValue.locAttributeValueName
+              attributeValue.media_url,
+              0,
+              attributeValue.locAttributeValueName,
+              attributeValue.locAttributeValueName,
+              id_product_attribute_value
             );
           }
         }
@@ -504,15 +508,14 @@ async function insertProduct(
   sellQuantity,
   createdDate,
   idCategory,
-  idAccount,
-  item_id
+  idAccount
 ) {
   try {
     const query = `
-      INSERT INTO Product(name, slogan, description, notes, uses, madeIn, sellQuantity, createdDate, id_Category, id_User, ingredient, objectsOfUse, preserve, instructionsForUse, height, width, length, weight, enable, item_id)
+      INSERT INTO Product(name, slogan, description, notes, uses, madeIn, sellQuantity, createdDate, id_Category, id_User, ingredient, objectsOfUse, preserve, instructionsForUse, height, width, length, weight, enable)
       OUTPUT inserted.id AS id_product
       SELECT 
-        @name, @slogan, @description, @notes, @uses, @madeIn, @sellQuantity, @createdDate, Category.id, [User].id, @ingredient, @objectsOfUse, @preserve, @instructionsForUse, @height, @width, @length, @weight, 1, @item_id
+        @name, @slogan, @description, @notes, @uses, @madeIn, @sellQuantity, @createdDate, Category.id, [User].id, @ingredient, @objectsOfUse, @preserve, @instructionsForUse, @height, @width, @length, @weight, 1
       FROM [User], Category
       WHERE [User].id_account = @idAccount AND Category.id = @idCategory `;
     const result = await transaction
@@ -535,7 +538,6 @@ async function insertProduct(
       .input("createdDate", createdDate)
       .input("idCategory", idCategory)
       .input("idAccount", idAccount)
-      .input("item_id", item_id.toString())
       .query(query);
     return result.recordset[0].id_product;
   } catch (error) {
@@ -571,25 +573,14 @@ router.post(
             expires: "03-01-2030",
           });
           const publicUrl = signedUrls[0];
-          const query = `
-            INSERT INTO Media(linkString, title, description, createdDate)
-            OUTPUT inserted.id AS id_media
-            SELECT @url AS linkString, @title AS title, @description AS description, @createdDate AS createdDate
-          `;
-          const result = await new sql.Request()
-            .input("url", publicUrl)
-            .input("title", uniqueFileName)
-            .input("description", uniqueFileName)
-            .input("createdDate", new Date())
-            .query(query);
           response.status(201).json({
             Message: "Upload successful!",
             url: publicUrl,
-            mediaID: result.recordset[0].id_media,
           });
         } catch (err) {
+          console.log(err);
           response.status(500).json({
-            error: err.message,
+            error: err,
           });
         }
       });
@@ -1101,4 +1092,4 @@ router.post("/restock-sku", checkAuth, checkRoleAdmin, async (req, res) => {
 });
 
 module.exports = router;
-module.exports.insertProduct1 = insertProduct1;
+// module.exports.insertProduct1 = insertProduct1;
