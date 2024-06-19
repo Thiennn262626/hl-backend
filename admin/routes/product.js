@@ -575,7 +575,7 @@ router.post(
           });
           const publicUrl = signedUrls[0];
           response.status(201).json({
-            Message: "Upload successful!",
+            Message: "Upload-image successful!",
             media_url: publicUrl,
           });
         } catch (err) {
