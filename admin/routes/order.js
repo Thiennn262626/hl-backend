@@ -601,6 +601,7 @@ router.get(
   checkRoleAdmin,
   async (request, response) => {
     try {
+      console.log("get-count-list");
       const responseCount = await countOrders();
       response.status(200).json(responseCount);
     } catch (error) {

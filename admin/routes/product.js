@@ -22,6 +22,7 @@ router.post(
   async (request, response) => {
     let transaction = new sql.Transaction();
     try {
+      console.log(request.body);
       const jsonData = request.body;
       const name = jsonData.productName;
       const slogan = jsonData.productSlogan;
@@ -575,7 +576,7 @@ router.post(
           const publicUrl = signedUrls[0];
           response.status(201).json({
             Message: "Upload successful!",
-            url: publicUrl,
+            media_url: publicUrl,
           });
         } catch (err) {
           console.log(err);
