@@ -6,6 +6,8 @@ const { sql } = require("../../config");
 const checkAuth = require("../../middleware/check_auth");
 const checkRoleAdmin = require("../../middleware/check_role_admin");
 
+const RedisService = require("../../services/redis.service");
+
 const firebase = require("../../firebase");
 
 const multer = require("multer");
@@ -736,7 +738,7 @@ function processSortBy(sortBy) {
   //8: so luong ton kho tang dan, 9: so luong ton kho giam dan
 }
 
-async function getListProduct(offset, limit, sortBy) {
+async function getListProduct(offset, limit, sortBy, search) {
   try {
     let sort = processSortBy(sortBy);
     const queryProduct = `
@@ -767,6 +769,7 @@ async function getListProduct(offset, limit, sortBy) {
     const result = await new sql.Request()
       .input("offset", offset)
       .input("limit", limit)
+      .input("search", search)
       .query(queryProduct);
 
     const resultMap = {};
@@ -830,8 +833,8 @@ router.get(
       var offset = parseInt(request.query.offset) || 0;
       var limit = parseInt(request.query.limit) || 10;
       var sortBy = parseInt(request.query.sortBy);
-      // var search = request.query.search;
-      const resultArray = await getListProduct(offset, limit, sortBy);
+      var search = request.query.search;
+      const resultArray = await getListProduct(offset, limit, sortBy, search);
       const length = await getLengthProduct();
       response.status(200).json({
         result: resultArray,
@@ -1091,6 +1094,189 @@ router.post("/restock-sku", checkAuth, checkRoleAdmin, async (req, res) => {
     });
   }
 });
+
+router.get(
+  "/get-product-by-id",
+  checkAuth,
+  checkRoleAdmin,
+  async (request, response) => {
+    try {
+      const idProduct = request.query.ProductID;
+      if (!idProduct) {
+        response.status(400).json({
+          error: "ProductID is required",
+        });
+        return;
+      }
+
+      let result = await RedisService.getJson(`product_${idProduct}`);
+      if (!result) {
+        //;
+        result = await getProductDetail(idProduct);
+        await RedisService.setJson(`product_${idProduct}`, result);
+        await RedisService.expire(`product_${idProduct}`, 1001);
+      }
+      response.status(200).json(result);
+    } catch (error) {
+      console.log(error);
+      response.status(500).json({
+        error: error,
+      });
+    }
+  }
+);
+async function getProductDetail(idProduct) {
+  try {
+    const queryProduct = `
+      SELECT 
+      p.id AS productID,
+      p.name AS productName,
+      p.description AS productDescription,
+      p.slogan AS productSlogan,
+      p.notes AS productNotes,
+      p.madeIn AS productMadeIn,
+      p.uses AS productUses,
+      p.ingredient AS productIngredient,
+      p.objectsOfUse AS productObjectsOfUse,
+      p.preserve AS productPreserve, 
+      p.instructionsForUse AS productInstructionsForUse,
+      p.height AS productHeight,
+      p.width AS productWidth,
+      p.length AS productLength,
+      p.weight AS productWeight,  
+      ps.id AS productSKUID,
+      ps.price AS price,
+      ps.priceBefore AS priceBefore,
+      m.id AS mediaID,
+      m.linkString AS linkString,
+      m.title AS title,
+      m.description AS description,
+      m.productAttributeValueID,
+      c.id AS productCategoryID,
+      c.name AS productCategoryName,
+      c.image AS linkStringCate
+      FROM Product as p 
+      JOIN ProductSku as ps ON p.id = ps.idProduct 
+      LEFT JOIN Media AS m ON p.id = m.id_product
+      LEFT JOIN ProductAttributeValue AS pav ON ps.idAttributeValue1 = pav.id AND m.productAttributeValueID = pav.id
+      LEFT JOIN Category as c ON p.id_Category = c.id
+      WHERE p.id = @idProduct AND ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
+    `;
+
+    const result = await new sql.Request()
+      .input("idProduct", idProduct)
+      .query(queryProduct);
+
+    const query_summary = `
+    SELECT
+    COUNT(r.id) AS rating_total,
+    SUM(CASE WHEN r.product_quality = 1 THEN 1 ELSE 0 END) AS rating_1_star,
+    SUM(CASE WHEN r.product_quality = 2 THEN 1 ELSE 0 END) AS rating_2_star,
+    SUM(CASE WHEN r.product_quality = 3 THEN 1 ELSE 0 END) AS rating_3_star,
+    SUM(CASE WHEN r.product_quality = 4 THEN 1 ELSE 0 END) AS rating_4_star,
+    SUM(CASE WHEN r.product_quality = 5 THEN 1 ELSE 0 END) AS rating_5_star
+    FROM Product AS p
+    JOIN ProductSku AS ps ON p.id = ps.idProduct
+    JOIN Rating AS r ON ps.id = r.product_sku_id
+    JOIN [User] AS u ON r.id_user = u.id
+    WHERE p.id =  @product_id
+    `;
+    const result_summary = await new sql.Request()
+      .input("product_id", idProduct)
+      .query(query_summary);
+    const resultMap = {};
+    result.recordset.forEach((item) => {
+      const { productID, productSKUID, mediaID } = item;
+      if (!resultMap[productID]) {
+        resultMap[productID] = {
+          productID: productID,
+          productName: item.productName,
+          productDescription: item.productDescription,
+          productSlogan: item.productSlogan,
+          productNotes: item.productNotes,
+          productMadeIn: item.productMadeIn,
+          productUses: item.productUses,
+          productIngredient: item.productIngredient,
+          productObjectsOfUse: item.productObjectsOfUse,
+          productPreserve: item.productPreserve,
+          productInstructionsForUse: item.productInstructionsForUse,
+          productHeight: item.productHeight,
+          productWidth: item.productWidth,
+          productLength: item.productLength,
+          productWeight: item.productWeight,
+          medias: [],
+          seller: {
+            sellerID: "75B9BA7C-0258-4830-9F08-66B74720229B",
+            businessName: "HLSHOP",
+            contactFullName: "ADMIN",
+            userType: 0,
+            linkString:
+              "https://storage.googleapis.com/hlsop-393ef.appspot.com/image.png?GoogleAccessId=firebase-adminsdk-5uq3u%40hlsop-393ef.iam.gserviceaccount.com&Expires=16730298000&Signature=mdOGFfym9%2FHsZgKS5l1NnpGX7yWhHahhEB7TXkPv9zbE8GbJ6Akf1HSNNpyLD7VRY5O%2BlWTuQWdv2wu6bFyXZmvlp%2FgR5AoNqamat8NqZ79QVIT0yyN36D6dVjliL2U61%2Fg2Cl6ZSYXnXudcC6TXFVhlbsCb7gua7tBCYbB1XDPC4EiAT47ztd256TmB%2B1jwMBz3w24hB7xt7nWwv6Pk3oc4XiyjeZAIjAsVYIiCwMTjg0lvkoC279wzfeEZapDkWwS8f4NgT8faJbaLrP4ZOTMl2EQYfomVdQwTjdxxt7avrRJyaRhd1yzV63afuEx6%2Ff71QmgY9Gxp7U%2F%2Fygjr3g%3D%3D",
+          },
+          productCategory: {
+            productCategoryID: item.productCategoryID,
+            productCategoryName: item.productCategoryName,
+            linkString: item.linkStringCate,
+          },
+          productSKU: [],
+          item_rating_summary: null,
+        };
+      }
+      const mediaExist = resultMap[productID].medias.some(
+        (media) => media.mediaID === mediaID
+      );
+      if (!mediaExist && item.productAttributeValueID === null) {
+        resultMap[productID].medias.push({
+          mediaID: mediaID,
+          linkString: item.linkString,
+          title: item.title ? item.title : "",
+          description: item.description ? item.description : "",
+        });
+      }
+
+      // Kiểm tra xem productSKU có tồn tại trong productSKU hay không
+      const skuExist = resultMap[productID].productSKU.some(
+        (sku) =>
+          sku.productSKUID === productSKUID ||
+          sku.linkString === item.linkString
+      );
+      if (!skuExist) {
+        resultMap[productID].productSKU.push({
+          productSKUID: productSKUID,
+          linkString: item.linkString,
+          price: item.price.toString(),
+          priceBefore: item.priceBefore.toString(),
+        });
+      }
+    });
+    const rating_count = [
+      result_summary.recordset[0].rating_1_star,
+      result_summary.recordset[0].rating_2_star,
+      result_summary.recordset[0].rating_3_star,
+      result_summary.recordset[0].rating_4_star,
+      result_summary.recordset[0].rating_5_star,
+    ];
+    const rating_total = result_summary.recordset[0].rating_total || 0;
+    const item_rating_summary = {
+      rating_avg:
+        rating_total > 0
+          ? parseFloat(
+              (
+                rating_count.reduce((a, b, i) => a + b * (i + 1), 0) /
+                rating_total
+              ).toFixed(1)
+            )
+          : 0,
+      rating_total: rating_total,
+      rating_count: rating_count,
+    };
+    resultMap[idProduct].item_rating_summary = item_rating_summary;
+    const resultArray = Object.values(resultMap);
+    return resultArray[0];
+  } catch (error) {
+    throw error;
+  }
+}
 
 module.exports = router;
 // module.exports.insertProduct1 = insertProduct1;
