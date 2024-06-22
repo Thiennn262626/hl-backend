@@ -25,6 +25,7 @@ class RedisService {
   }
 
   async del(key) {
+    console.log("del", key);
     return this.client.del(key);
   }
 

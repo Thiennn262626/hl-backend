@@ -1074,26 +1074,353 @@ router.post("/enable-sku", checkAuth, checkRoleAdmin, async (req, res) => {
 router.post("/restock-sku", checkAuth, checkRoleAdmin, async (req, res) => {
   try {
     const { productSKUID, totalStock } = req.body;
-    console.log(productSKUID, totalStock);
+
+    // Validate input
+    if (!productSKUID || !totalStock || isNaN(totalStock) || totalStock < 0) {
+      return res
+        .status(400)
+        .json({ error: "Invalid productSKUID or totalStock." });
+    }
+
+    // Update query
     const query = `
       UPDATE ProductSKU
       SET quantity = @totalStock
       WHERE id = @productSKUID
     `;
-    const result = await new sql.Request()
-      .input("productSKUID", productSKUID)
-      .input("totalStock", totalStock)
+
+    // Create a new request using sql.Request() without pool
+    const request = new sql.Request();
+    const result = await request
+      .input("productSKUID", sql.NVarChar, productSKUID)
+      .input("totalStock", sql.Int, totalStock)
       .query(query);
-    res.status(200).json({
-      message: "Restock SKU successfully",
-    });
+
+    // Check if any rows were affected
+    if (result.rowsAffected.length > 0) {
+      res.status(200).json({
+        message: "Restock SKU successfully",
+      });
+    } else {
+      res.status(400).json({
+        error: "Failed to restock SKU.",
+      });
+    }
   } catch (error) {
-    console.log(error);
+    console.error("Error restocking SKU:", error.message);
     res.status(500).json({
       error: "Internal Server Error",
     });
   }
 });
+
+router.post(
+  "/update-sku-price",
+  checkAuth,
+  checkRoleAdmin,
+  async (req, res) => {
+    try {
+      const { productSKUID, price } = req.body;
+
+      // Validate input
+      if (!productSKUID || !price) {
+        return res
+          .status(400)
+          .json({ error: "ProductSKUID and price are required." });
+      }
+
+      // Convert price to number and validate
+      const numericPrice = parseFloat(price);
+      if (isNaN(numericPrice) || numericPrice <= 0) {
+        return res
+          .status(400)
+          .json({ error: "Price must be a valid positive number." });
+      }
+
+      // Check if SKU exists
+      const skuQuery = `
+      SELECT id
+      FROM ProductSKU
+      WHERE id = @productSKUID
+    `;
+
+      // Execute the SKU query
+      const skuResult = await new sql.Request()
+        .input("productSKUID", sql.NVarChar, productSKUID)
+        .query(skuQuery);
+
+      const sku = skuResult.recordset[0];
+
+      if (!sku) {
+        return res.status(404).json({ error: "SKU not found." });
+      }
+
+      // Perform update
+      const updateQuery = `
+      UPDATE ProductSKU
+      SET price = @price
+      WHERE id = @productSKUID
+    `;
+
+      // Execute the update query
+      const updateResult = await new sql.Request()
+        .input("productSKUID", sql.NVarChar, productSKUID)
+        .input("price", sql.Decimal, numericPrice)
+        .query(updateQuery);
+
+      // Check if any rows were affected
+      if (updateResult.rowsAffected.length > 0) {
+        res.status(200).json({
+          message: "Update SKU price successfully",
+        });
+      } else {
+        res.status(400).json({
+          error: "Failed to update SKU price.",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating SKU price:", error.message);
+      res.status(500).json({
+        error: "Internal Server Error",
+      });
+    }
+  }
+);
+router.post(
+  "/update-sku-price-before",
+  checkAuth,
+  checkRoleAdmin,
+  async (req, res) => {
+    try {
+      const { productSKUID, price } = req.body;
+
+      // Validate input
+      if (!productSKUID || !price) {
+        return res
+          .status(400)
+          .json({ error: "ProductSKUID and price are required." });
+      }
+
+      // Convert price to number and validate
+      const numericPrice = parseFloat(price);
+      if (isNaN(numericPrice) || numericPrice <= 0) {
+        return res
+          .status(400)
+          .json({ error: "Price must be a valid positive number." });
+      }
+
+      // Check if SKU exists
+      const skuQuery = `
+      SELECT id
+      FROM ProductSKU
+      WHERE id = @productSKUID
+    `;
+
+      // Execute the SKU query
+      const skuResult = await new sql.Request()
+        .input("productSKUID", sql.NVarChar, productSKUID)
+        .query(skuQuery);
+
+      const sku = skuResult.recordset[0];
+
+      if (!sku) {
+        return res.status(404).json({ error: "SKU not found." });
+      }
+
+      // Perform update
+      const updateQuery = `
+      UPDATE ProductSKU
+      SET priceBefore = @price
+      WHERE id = @productSKUID
+    `;
+
+      // Execute the update query
+      const updateResult = await new sql.Request()
+        .input("productSKUID", sql.NVarChar, productSKUID)
+        .input("price", sql.Decimal, numericPrice)
+        .query(updateQuery);
+
+      // Check if any rows were affected
+      if (updateResult.rowsAffected.length > 0) {
+        res.status(200).json({
+          message: "Update SKU price successfully",
+        });
+      } else {
+        res.status(400).json({
+          error: "Failed to update SKU price.",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating SKU price:", error.message);
+      res.status(500).json({
+        error: "Internal Server Error",
+      });
+    }
+  }
+);
+
+router.post(
+  "/update-product-info",
+  checkAuth,
+  checkRoleAdmin,
+  async (req, res) => {
+    try {
+      const {
+        productID,
+        productName,
+        productSlogan,
+        productDescription,
+        productMadeIn,
+        productCategoryID,
+      } = req.body;
+
+      // Kiểm tra dữ liệu đầu vào
+      if (
+        !productID ||
+        !productName ||
+        !productSlogan ||
+        !productDescription ||
+        !productMadeIn ||
+        !productCategoryID
+      ) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      await RedisService.del(`product_${productID}`);
+
+      const success = await updateProductInfo({
+        productID,
+        productName,
+        productSlogan,
+        productDescription,
+        productMadeIn,
+        productCategoryID,
+      });
+
+      if (success) {
+        res.status(200).json({ message: "Product info updated successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to update product info" });
+      }
+    } catch (error) {
+      console.error("Error updating product info:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
+
+async function updateProductInfo({
+  productID,
+  productName,
+  productSlogan,
+  productDescription,
+  productMadeIn,
+  productCategoryID,
+}) {
+  try {
+    const query = `
+      UPDATE Product
+      SET name = @productName,
+          slogan = @productSlogan,
+          description = @productDescription,
+          madeIn = @productMadeIn,
+          id_Category = @productCategoryID
+      WHERE id = @productID
+    `;
+
+    const result = await new sql.Request()
+      .input("productID", productID)
+      .input("productName", productName)
+      .input("productSlogan", productSlogan)
+      .input("productDescription", productDescription)
+      .input("productMadeIn", productMadeIn)
+      .input("productCategoryID", productCategoryID)
+      .query(query);
+
+    return result.rowsAffected.length > 0;
+  } catch (error) {
+    throw error;
+  }
+}
+
+router.post(
+  "/update-product-delivery",
+  checkAuth,
+  checkRoleAdmin,
+  async (req, res) => {
+    try {
+      const {
+        productID,
+        productHeight,
+        productWidth,
+        productLength,
+        productWeight,
+      } = req.body;
+      console.log(req.body);
+      // Kiểm tra dữ liệu đầu vào
+      if (
+        !productID ||
+        !productHeight ||
+        !productWidth ||
+        !productLength ||
+        !productWeight
+      ) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      await RedisService.del(`product_${productID}`);
+
+      const success = await updateProductDelivery({
+        productID,
+        productHeight,
+        productWidth,
+        productLength,
+        productWeight,
+      });
+
+      if (success) {
+        res
+          .status(200)
+          .json({ message: "Product delivery info updated successfully" });
+      } else {
+        res
+          .status(500)
+          .json({ message: "Failed to update product delivery info" });
+      }
+    } catch (error) {
+      console.error("Error updating product delivery info:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
+
+async function updateProductDelivery({
+  productID,
+  productHeight,
+  productWidth,
+  productLength,
+  productWeight,
+}) {
+  try {
+    const query = `
+      UPDATE Product
+      SET height = @productHeight,
+          width = @productWidth,
+          length = @productLength,
+          weight = @productWeight
+      WHERE id = @productID
+    `;
+    const result = await new sql.Request()
+      .input("productID", productID)
+      .input("productHeight", Number(productHeight))
+      .input("productWidth", Number(productWidth))
+      .input("productLength", Number(productLength))
+      .input("productWeight", Number(productWeight))
+      .query(query);
+    console.log(result);
+    return result.rowsAffected.length > 0;
+  } catch (error) {
+    throw error;
+  }
+}
 
 router.get(
   "/get-product-by-id",
