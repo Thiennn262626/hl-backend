@@ -101,16 +101,16 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
           }
           console.log("rating_id: ", rating_id);
         }
-        const url = `http://localhost:3456/get-recommendation-by-user/${request.user_id}`;
-        console.log("url: ", url);
-        try {
-          const result = await axios.get(url);
-          console.log("result: ", result.data);
-        } catch (error) {
-          console.error(
-            `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
-          );
-        }
+        // const url = `http://localhost:3456/get-recommendation-by-user/${request.user_id}`;
+        // console.log("url: ", url);
+        // try {
+        //   const result = await axios.get(url);
+        //   console.log("result: ", result.data);
+        // } catch (error) {
+        //   console.error(
+        //     `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
+        //   );
+        // }
 
         await transaction.commit();
         response.status(201).json({
@@ -432,16 +432,16 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
           new_data_input.comment,
           new_data_input.detailed_rating
         );
-        const url = `http://localhost:3456/get-recommendation-by-user/${request.user_id}`;
-        console.log("url: ", url);
-        try {
-          const result = await axios.get(url);
-          console.log("result: ", result.data);
-        } catch (error) {
-          console.error(
-            `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
-          );
-        }
+        // const url = `http://localhost:3456/get-recommendation-by-user/${request.user_id}`;
+        // console.log("url: ", url);
+        // try {
+        //   const result = await axios.get(url);
+        //   console.log("result: ", result.data);
+        // } catch (error) {
+        //   console.error(
+        //     `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
+        //   );
+        // }
         await transaction.commit();
         response.status(201).json({
           status: 200,
