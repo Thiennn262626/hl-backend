@@ -4,7 +4,7 @@ const path = require("path");
 const app = express();
 app.use(cors());
 
-const port = 3001;
+const port = 3000;
 
 const { connectToDatabase } = require("./config");
 connectToDatabase();
