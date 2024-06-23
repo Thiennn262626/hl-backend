@@ -101,22 +101,12 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
           }
           console.log("rating_id: ", rating_id);
         }
-        const url = `http://0.0.0.0:80/get-recommendation-by-user/${request.user_id}`;
-        console.log("url: ", url);
-        try {
-          const result = await axios.get(url);
-          console.log("result: ", result.data);
-        } catch (error) {
-          console.error(
-            `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
-          );
-        }
-
         await transaction.commit();
         response.status(201).json({
           status: 200,
           message: "Create Order Success",
         });
+        // callPythonService(request.user_id);
       })
       .catch(async (err) => {
         await transaction.rollback();
@@ -140,6 +130,22 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
     });
   }
 });
+
+// function callPythonService(userId) {
+//   const url = `http://0.0.0.0:80/get-recommendation-by-user/${userId}`;
+//   console.log("url: ", url);
+
+//   // Gọi request tới URL bằng axios
+//   axios
+//     .get(url)
+//     .then(() => {
+//       console.log("Request sent to Python service successfully.");
+//     })
+//     .catch((error) => {
+//       console.error("Error sending request to Python service:", error);
+//     });
+// }
+
 async function checkValidOrder(order_detail, order_items) {
   for (const order_item of order_items) {
     if (!order_item.order_item_id) {
@@ -432,16 +438,6 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
           new_data_input.comment,
           new_data_input.detailed_rating
         );
-        const url = `http://0.0.0.0:80/get-recommendation-by-user/${request.user_id}`;
-        console.log("url: ", url);
-        try {
-          const result = await axios.get(url);
-          console.log("result: ", result.data);
-        } catch (error) {
-          console.error(
-            `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
-          );
-        }
         await transaction.commit();
         response.status(201).json({
           status: 200,
@@ -450,6 +446,7 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
             RatingID: rating_id,
           },
         });
+        // callPythonService(request.user_id);
       })
       .catch(async (err) => {
         await transaction.rollback();
