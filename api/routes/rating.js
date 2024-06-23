@@ -107,15 +107,9 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
           const result = await axios.get(url);
           console.log("result: ", result.data);
         } catch (error) {
-          if (error.code === "ECONNREFUSED") {
-            console.error(
-              `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
-            );
-          } else {
-            console.error(
-              `Error occurred while fetching data: ${error.message}`
-            );
-          }
+          console.error(
+            `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
+          );
         }
 
         await transaction.commit();
@@ -444,15 +438,9 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
           const result = await axios.get(url);
           console.log("result: ", result.data);
         } catch (error) {
-          if (error.code === "ECONNREFUSED") {
-            console.error(
-              `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
-            );
-          } else {
-            console.error(
-              `Error occurred while fetching data: ${error.message}`
-            );
-          }
+          console.error(
+            `Cannot connect to server at ${url}. Server might be down or the port might be incorrect.`
+          );
         }
         await transaction.commit();
         response.status(201).json({
