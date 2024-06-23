@@ -6,6 +6,9 @@ const { sql } = require("../../config");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 
+// const db_action = require("../../utils/db_action");
+const axios = require("axios");
+
 const firebase = require("../../firebase");
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -98,6 +101,11 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
           }
           console.log("rating_id: ", rating_id);
         }
+        const url = `http://localhost:3456/get-recommendation-by-user/${request.user_id}`;
+        console.log("url: ", url);
+        const result = await axios.get(url);
+        console.log("result: ", result);
+
         await transaction.commit();
         response.status(201).json({
           status: 200,
@@ -418,6 +426,10 @@ router.post("/update", checkAuth, checkRole, async (request, response) => {
           new_data_input.comment,
           new_data_input.detailed_rating
         );
+        const url = `http://localhost:3456/get-recommendation-by-user/${request.user_id}`;
+        console.log("url: ", url);
+        const result = await axios.get(url);
+        console.log("result: ", result);
         await transaction.commit();
         response.status(201).json({
           status: 200,
@@ -1504,8 +1516,6 @@ router.get(
 //     userID: userID,
 //   };
 // }
-
-const db_action = require("../../utils/db_action");
 
 // async function getInfoProduct(productSkuID, orderID, transaction) {
 //   try {

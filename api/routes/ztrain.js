@@ -78,20 +78,20 @@ router.get("/test", async (req, res) => {
   }
 });
 
-router.get("/get-rating-for-python-service", async (req, res) => {
-  try {
-    console.log("start getProductToTraining", new Date().toISOString());
-    const query = `
-      SELECT r.id_user AS userId, p.id AS productId, r.product_quality AS rating, r.created_date AS timestamp
-      FROM [Rating] AS r
-      INNER JOIN ProductSku AS ps ON r.product_sku_id = ps.id
-      INNER JOIN Product AS p ON ps.idProduct = p.id
-      ORDER BY r.id_user
-      `;
-    const result = await sql.query(query);
-    res.status(200).json({ message: "success", data: result.recordset });
-  } catch (err) {
-    console.log(err);
-  }
-});
+// router.get("/get-rating-for-python-service", async (req, res) => {
+//   try {
+//     console.log("start getProductToTraining", new Date().toISOString());
+//     const query = `
+//       SELECT r.id_user AS userId, p.id AS productId, r.product_quality AS rating, r.created_date AS timestamp
+//       FROM [Rating] AS r
+//       INNER JOIN ProductSku AS ps ON r.product_sku_id = ps.id
+//       INNER JOIN Product AS p ON ps.idProduct = p.id
+//       ORDER BY r.id_user
+//       `;
+//     const result = await sql.query(query);
+//     res.status(200).json({ message: "success", data: result.recordset });
+//   } catch (err) {
+//     console.log(err);
+//   }
+// });
 module.exports = router;

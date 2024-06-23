@@ -366,95 +366,12 @@ router.get(
       console.log("userid: ", userid);
       var offset = parseInt(request.query.offset) || 0;
       var limit = parseInt(request.query.limit) || 10;
-      var search = request.query.search
-        ? request.query.search.toLowerCase()
-        : "";
-      var sortBy = parseInt(request.query.sortBy);
-      var minAmount = parseInt(request.query.minAmount);
-      var maxAmount = parseInt(request.query.maxAmount);
 
       let resultArray = await RedisService.getJson("listProduct");
       if (!resultArray) {
-        //;
         resultArray = await getListProduct();
         await RedisService.setJson("listProduct", resultArray);
         await RedisService.expire("listProduct", 60 * 60 * 24);
-      }
-
-      resultArray.sort((a, b) => {
-        return new Date(b.createdDate) - new Date(a.createdDate);
-      });
-
-      const filteredResult = resultArray.filter((item) => {
-        const productNameMatch = item.productName
-          ? item.productName.toLowerCase().includes(search)
-          : false;
-        const productDescriptionMatch = item.productDescription
-          ? item.productDescription.toLowerCase().includes(search)
-          : false;
-        const productSloganMatch = item.productSlogan
-          ? item.productSlogan.toLowerCase().includes(search)
-          : false;
-        const productNotesMatch = item.productNotes
-          ? item.productNotes.toLowerCase().includes(search)
-          : false;
-        const productMadeInMatch = item.productMadeIn
-          ? item.productMadeIn.toLowerCase().includes(search)
-          : false;
-        const priceMatch =
-          !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
-            ? item.productSKU &&
-              item.productSKU.length > 0 &&
-              item.productSKU[0].price >= minAmount &&
-              item.productSKU[0].price <= maxAmount
-            : true;
-        return (
-          (productNameMatch ||
-            productDescriptionMatch ||
-            productSloganMatch ||
-            productNotesMatch ||
-            productMadeInMatch) &&
-          priceMatch
-        );
-      });
-      //sortBy: 0: Giá tăng dần, 1: Giá giảm dần, 2: mới nhất, 3: cũ nhất, 4: phổ biến nhất, 5: bán chạy nhất
-      switch (sortBy) {
-        case 0:
-          filteredResult.sort((a, b) => {
-            return a.productSKU[0].price - b.productSKU[0].price;
-          });
-          break;
-        case 1:
-          filteredResult.sort((a, b) => {
-            return b.productSKU[0].price - a.productSKU[0].price;
-          });
-          break;
-        case 2:
-          filteredResult.sort((a, b) => {
-            return new Date(b.createdDate) - new Date(a.createdDate);
-          });
-          break;
-        case 3:
-          filteredResult.sort((a, b) => {
-            return new Date(a.createdDate) - new Date(b.createdDate);
-          });
-          break;
-
-        case 4:
-          filteredResult.sort((a, b) => {
-            return (
-              b.sellQuantity / b.productSKU[0].price -
-              a.sellQuantity / a.productSKU[0].price
-            );
-          });
-          break;
-        case 5:
-          filteredResult.sort((a, b) => {
-            return b.sellQuantity - a.sellQuantity;
-          });
-          break;
-        default:
-          break;
       }
       //call api from web
       res = await recommendByUser(userid);
