@@ -1422,6 +1422,116 @@ async function updateProductDelivery({
   }
 }
 
+router.post(
+  "/update-product-images",
+  checkAuth,
+  checkRoleAdmin,
+  async (req, response) => {
+    let transaction = new sql.Transaction();
+    try {
+      const { productID, medias } = req.body;
+      // Validate input
+      if (!productID || !medias || !Array.isArray(medias)) {
+        return res.status(400).json({ error: "Invalid productID or images." });
+      }
+      await RedisService.del(`product_${productID}`);
+      await transaction
+        .begin()
+        .then(async () => {
+          const list_image = await getImages(transaction, productID);
+
+          // Check if there are any images to be deleted
+          const imagesToDelete = list_image.filter(
+            (img) => !medias.some((media) => media.mediaID === img.mediaID)
+          );
+          // Delete old images
+          for (const img of imagesToDelete) {
+            await deleteImage(transaction, img.mediaID);
+          }
+          // Add new images
+          for (const media of medias) {
+            if (!media.mediaID) {
+              await addImage(transaction, productID, media.linkString);
+            }
+          }
+          await transaction.commit();
+          response.status(201).json({
+            status: 200,
+            message: "Update Product Images Success",
+            result: {
+              productID: productID,
+              medias: medias,
+            },
+          });
+        })
+        .catch(async (err) => {
+          await transaction.rollback();
+          throw err;
+        });
+      return {};
+    } catch (error) {
+      console.error("Error updating product images:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+      });
+    }
+  }
+);
+
+async function deleteImage(transaction, mediaID) {
+  try {
+    console.log("deleteImage: ", mediaID);
+    const query = `
+      DELETE FROM Media
+      WHERE id = @mediaID
+    `;
+    await transaction.request().input("mediaID", mediaID).query(query);
+  } catch (error) {
+    throw "Error deleting image";
+  }
+}
+async function addImage(transaction, productID, linkString) {
+  try {
+    console.log("addImage: ", productID, linkString);
+    const query = `
+      INSERT INTO Media(id_product, linkString, createdDate, isDefault)
+      VALUES(@productID, @linkString, @createdDate, @isDefault)
+    `;
+    const result = await transaction
+      .request()
+      .input("productID", productID)
+      .input("linkString", linkString)
+      .input("createdDate", new Date())
+      .input("isDefault", 0)
+      .query(query);
+    console.log(result);
+    if (result.rowsAffected.length === 0) {
+      throw "Error adding new image";
+    }
+  } catch (error) {
+    throw "Error adding new image";
+  }
+}
+
+async function getImages(transaction, productID) {
+  try {
+    const query = `
+    SELECT 
+    id AS mediaID, 
+    linkString
+    FROM Media
+    WHERE id_product = @productID AND productAttributeValueID IS NULL
+  `;
+    const result = await transaction
+      .request()
+      .input("productID", productID)
+      .query(query);
+    return result.recordset;
+  } catch (error) {
+    throw "Error in getImages";
+  }
+}
+
 router.get(
   "/get-product-by-id",
   checkAuth,
