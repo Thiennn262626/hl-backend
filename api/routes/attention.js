@@ -27,7 +27,7 @@ router.post(
       } else {
         await setProductAttention(user_id, product_id);
         await RedisService.setJson(key, true);
-        await RedisService.expire(key, 180);
+        await RedisService.expire(key, 300);
 
         return response.status(200).json({
           message: "success",

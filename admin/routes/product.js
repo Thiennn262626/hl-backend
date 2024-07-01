@@ -1595,7 +1595,7 @@ async function getProductDetail(idProduct) {
       LEFT JOIN Media AS m ON p.id = m.id_product
       LEFT JOIN ProductAttributeValue AS pav ON ps.idAttributeValue1 = pav.id AND m.productAttributeValueID = pav.id
       LEFT JOIN Category as c ON p.id_Category = c.id
-      WHERE p.id = @idProduct AND ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
+      WHERE p.id = @idProduct
     `;
 
     const result = await new sql.Request()
