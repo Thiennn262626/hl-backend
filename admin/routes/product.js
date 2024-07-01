@@ -635,7 +635,7 @@ function processSortBy(sortBy) {
                   )
               ) AS Subquery
               ORDER BY price ASC
-              OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
               )`,
         end: "ORDER BY pp.price",
       };
@@ -654,7 +654,7 @@ function processSortBy(sortBy) {
                   )
               ) AS Subquery
               ORDER BY price DESC
-              OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY
+              OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY
               )`,
         end: "ORDER BY pp.price DESC",
       };
