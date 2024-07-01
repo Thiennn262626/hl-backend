@@ -458,6 +458,7 @@ async function getListProductByListID(paginatedResultID) {
         JOIN Product as p ON p.id = nv.productID
         JOIN ProductSku as ps ON p.id = ps.idProduct
         JOIN Media as m ON p.id = m.id_product
+        WHERE p.enable = 1
         ORDER BY nv.RowNumber;
             `;
     const result = await new sql.Request()
