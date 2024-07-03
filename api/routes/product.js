@@ -188,71 +188,6 @@ router.get("/get-detail", async (request, response) => {
   }
 });
 
-// async function getListProduct() {
-//   try {
-//     const queryProduct = `
-//               SELECT
-//               p.id AS productID,
-//               p.name AS productName,
-//               p.description AS productDescription,
-//               p.slogan AS productSlogan,
-//               p.notes AS productNotes,
-//               p.madeIn AS productMadeIn,
-//               p.sellQuantity AS sellQuantity,
-//               p.createdDate AS createdDate,
-//               ps.id AS productSKUID,
-//               ps.price AS price,
-//               ps.priceBefore AS priceBefore,
-//               m.id AS mediaID,
-//               m.linkString AS linkString,
-//               m.title AS title,
-//               m.description AS description
-//               FROM Product as p
-//               JOIN ProductSku as ps ON p.id = ps.idProduct
-//               JOIN Media as m ON p.id = m.id_product
-//               WHERE ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
-//             `;
-//     const result = await new sql.Request().query(queryProduct);
-
-//     const resultMap = {};
-//     result.recordset.forEach((item) => {
-//       const { productID, productSKUID, mediaID } = item;
-//       if (!resultMap[productID]) {
-//         resultMap[productID] = {
-//           productID: productID,
-//           productName: item.productName,
-//           productDescription: item.productDescription,
-//           productSlogan: item.productSlogan,
-//           productNotes: item.productNotes,
-//           productMadeIn: item.productMadeIn,
-//           sellQuantity: item.sellQuantity,
-//           createdDate: item.createdDate,
-//           medias: [
-//             {
-//               mediaID: mediaID,
-//               linkString: item.linkString,
-//               title: item.title ? item.title : "",
-//               description: item.description ? item.description : "",
-//             },
-//           ],
-//           productSKU: [
-//             {
-//               productSKUID: productSKUID,
-//               price: item.price,
-//               priceBefore: item.priceBefore,
-//             },
-//           ],
-//         };
-//       }
-//     });
-
-//     const resultArray = Object.values(resultMap);
-//     return resultArray;
-//   } catch (error) {
-//     throw error;
-//   }
-// }
-
 router.get("/get-list-best-seller", async (request, response) => {
   const key = "list_id_best_seller";
   try {
@@ -457,7 +392,140 @@ router.get("/get-list-new", async (request, response) => {
     response.status(500).json({ errorCode: error });
   }
 });
-router.get("/get-list-search", async (request, response) => {});
+
+var client = require("../../services/elasticsearch.service");
+
+async function getListProduct() {
+  try {
+    const queryProduct = `
+    SELECT
+    p.id AS productID,
+    p.name AS productName,
+    p.description AS productDescription,
+    p.slogan AS productSlogan,
+    p.notes AS productNotes,
+    p.madeIn AS productMadeIn,
+    p.sellQuantity AS sellQuantity,
+    p.createdDate AS createdDate,
+    ps.id AS productSKUID,
+    ps.price AS price,
+    ps.priceBefore AS priceBefore,
+    m.id AS mediaID,
+    m.linkString AS linkString,
+    m.title AS title,
+    m.description AS description
+    FROM Product as p
+    JOIN ProductSku as ps ON p.id = ps.idProduct
+    JOIN Media as m ON p.id = m.id_product
+    WHERE ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
+            `;
+    const result = await new sql.Request().query(queryProduct);
+
+    const resultMap = {};
+    result.recordset.forEach((item) => {
+      const { productID, productSKUID, mediaID } = item;
+      if (!resultMap[productID]) {
+        resultMap[productID] = {
+          productID: productID,
+          productName: item.productName,
+          productDescription: item.productDescription,
+          productSlogan: item.productSlogan,
+          productNotes: item.productNotes,
+          productMadeIn: item.productMadeIn,
+          sellQuantity: item.sellQuantity,
+          createdDate: item.createdDate,
+          medias: [
+            {
+              mediaID: mediaID,
+              linkString: item.linkString,
+              title: item.title ? item.title : "",
+              description: item.description ? item.description : "",
+            },
+          ],
+          productSKU: [
+            {
+              productSKUID: productSKUID,
+              price: item.price,
+              priceBefore: item.priceBefore,
+            },
+          ],
+        };
+      }
+    });
+
+    const resultArray = Object.values(resultMap);
+    return resultArray;
+  } catch (error) {
+    throw error;
+  }
+}
+
+router.get("/backup-elastic", async (request, response) => {
+  try {
+    const resultArray = await getListProduct();
+    for (const item of resultArray) {
+      await client.index({
+        index: "products",
+        id: item.productID,
+        body: item,
+      });
+    }
+    response.status(200).json({
+      message: "Backup data to Elasticsearch successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    response.status(500).json({ errorCode: error });
+  }
+});
+router.get("/get-list-search", async (request, response) => {
+  try {
+    var offset = parseInt(request.query.offset) || 0;
+    var limit = parseInt(request.query.limit) || 10;
+    var search = request.query.search || "";
+    var sort = parseInt(request.query.sort); // Đảm bảo sort được parse thành số nguyên
+
+    let sortOptions = [];
+
+    switch (sort) {
+      case 1:
+        sortOptions.push({ "productSKU.price": { order: "asc" } });
+        break;
+      case 2:
+        sortOptions.push({ "productSKU.price": { order: "desc" } });
+        break;
+      case 3:
+        sortOptions.push({ createdDate: { order: "desc" } });
+        break;
+      case 4:
+        sortOptions.push({ createdDate: { order: "asc" } });
+        break;
+      default:
+        sortOptions = []; // Sắp xếp mặc định theo Elasticsearch
+        break;
+    }
+
+    const result = await client.search({
+      index: "products",
+      body: {
+        query: {
+          match: {
+            productName: search,
+          },
+        },
+        sort: sortOptions,
+        from: offset,
+        size: limit,
+      },
+    });
+
+    const products = result.hits.hits.map((item) => item._source);
+    response.status(200).json({ result: products, total: products.length });
+  } catch (error) {
+    console.error(error);
+    response.status(500).json({ errorCode: error });
+  }
+});
 
 router.get("/get-list-hot", async (request, response) => {
   const key = "list_id_hot";

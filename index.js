@@ -12,6 +12,11 @@ const initRedis = require("./dbs/init.redis");
 initRedis.initRedis();
 // const { scheduleInterval } = require("./lib/scheduler");
 // scheduleInterval();
+var client = require("./services/elasticsearch.service");
+
+client.cluster.health({}, function (err, resp, status) {
+  console.log("-- Client Health --", resp);
+});
 
 //import file
 const authRouter = require("./api/routes/auth");
