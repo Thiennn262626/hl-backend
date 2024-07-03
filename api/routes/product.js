@@ -7,6 +7,7 @@ const { sql } = require("../../config");
 const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
+const GetList = require("../../utils/product_controller/get_list");
 
 const ContentBasedRecommender = require("../../lib/ContentBasedRecommender");
 const { TrainingContendBaseGetByProduct } = require("../../lib/scheduler");
@@ -253,106 +254,24 @@ async function getListProduct() {
 }
 
 router.get("/get-list-best-seller", async (request, response) => {
+  const key = "list_id_best_seller";
   try {
+    //Sản phẩm có lượt xem hoặc lượt yêu thích cao
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
-    var search = request.query.search ? request.query.search.toLowerCase() : "";
-    var sortBy = parseInt(request.query.sortBy);
-    var minAmount = parseInt(request.query.minAmount);
-    var maxAmount = parseInt(request.query.maxAmount);
 
-    let resultArray = await RedisService.getJson("listProduct");
-    if (!resultArray) {
-      //;
-      resultArray = await getListProduct();
-      await RedisService.setJson("listProduct", resultArray);
-      await RedisService.expire("listProduct", 60 * 60 * 24);
+    let resultID = await RedisService.getJson(key);
+    if (!resultID) {
+      resultID = await GetList.getIDlistbestseller();
+      await RedisService.setJson(key, resultID);
+      await RedisService.expire(key, 60 * 5);
     }
-
-    resultArray.sort((a, b) => {
-      return b.sellQuantity - a.sellQuantity;
-    });
-
-    const filteredResult = resultArray.filter((item) => {
-      const productNameMatch = item.productName
-        ? item.productName.toLowerCase().includes(search)
-        : false;
-      const productDescriptionMatch = item.productDescription
-        ? item.productDescription.toLowerCase().includes(search)
-        : false;
-      const productSloganMatch = item.productSlogan
-        ? item.productSlogan.toLowerCase().includes(search)
-        : false;
-      const productNotesMatch = item.productNotes
-        ? item.productNotes.toLowerCase().includes(search)
-        : false;
-      const productMadeInMatch = item.productMadeIn
-        ? item.productMadeIn.toLowerCase().includes(search)
-        : false;
-      const priceMatch =
-        !isNaN(minAmount) && !isNaN(maxAmount)
-          ? item.productSKU &&
-            item.productSKU.length > 0 &&
-            item.productSKU[0].price >= minAmount &&
-            item.productSKU[0].price <= maxAmount
-          : true;
-      return (
-        (productNameMatch ||
-          productDescriptionMatch ||
-          productSloganMatch ||
-          productNotesMatch ||
-          productMadeInMatch) &&
-        priceMatch
-      );
-    });
-    //sortBy: 0: Giá tăng dần, 1: Giá giảm dần, 2: mới nhất, 3: cũ nhất, 4: phổ biến nhất, 5: bán chạy nhất
-    switch (sortBy) {
-      case 0:
-        filteredResult.sort((a, b) => {
-          return a.productSKU[0].price - b.productSKU[0].price;
-        });
-        break;
-      case 1:
-        filteredResult.sort((a, b) => {
-          return b.productSKU[0].price - a.productSKU[0].price;
-        });
-        break;
-      case 2:
-        filteredResult.sort((a, b) => {
-          return new Date(b.createdDate) - new Date(a.createdDate);
-        });
-        break;
-      case 3:
-        filteredResult.sort((a, b) => {
-          return new Date(a.createdDate) - new Date(b.createdDate);
-        });
-        break;
-
-      case 4:
-        filteredResult.sort((a, b) => {
-          return (
-            b.sellQuantity / b.productSKU[0].price -
-            a.sellQuantity / a.productSKU[0].price
-          );
-        });
-        break;
-      case 5:
-        filteredResult.sort((a, b) => {
-          return b.sellQuantity - a.sellQuantity;
-        });
-        break;
-      default:
-        break;
-    }
-    // Phân trang
-    const paginatedResult = filteredResult.slice(offset, offset + limit);
-
-    response
-      .status(200)
-      .json({ result: paginatedResult, total: filteredResult.length });
+    const paginatedResultID = resultID.slice(offset, offset + limit);
+    const products = await getListProductByListID(paginatedResultID);
+    response.status(200).json({ result: products, total: resultID.length });
   } catch (error) {
     console.error(error);
-    response.status(500).json({ errorCode: error });
+    response.status(500).json({ result: [], total: 0 });
   }
 });
 
@@ -522,103 +441,21 @@ async function recommendByUser(user_id) {
 }
 
 router.get("/get-list-new", async (request, response) => {
+  const key = "list_id_new";
   try {
+    //Sản phẩm mới nhất được thêm vào cửa hàng
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
-    var search = request.query.search ? request.query.search.toLowerCase() : "";
-    var sortBy = parseInt(request.query.sortBy);
-    var minAmount = parseInt(request.query.minAmount);
-    var maxAmount = parseInt(request.query.maxAmount);
 
-    let resultArray = await RedisService.getJson("listProduct");
-    if (!resultArray) {
-      //;
-      resultArray = await getListProduct();
-      await RedisService.setJson("listProduct", resultArray);
-      await RedisService.expire("listProduct", 60 * 60 * 24);
+    let resultID = await RedisService.getJson(key);
+    if (!resultID) {
+      resultID = await GetList.getIDlistnew();
+      await RedisService.setJson(key, resultID);
+      await RedisService.expire(key, 60 * 5);
     }
-
-    resultArray.sort((a, b) => {
-      return new Date(b.createdDate) - new Date(a.createdDate);
-    });
-
-    const filteredResult = resultArray.filter((item) => {
-      const productNameMatch = item.productName
-        ? item.productName.toLowerCase().includes(search)
-        : false;
-      const productDescriptionMatch = item.productDescription
-        ? item.productDescription.toLowerCase().includes(search)
-        : false;
-      const productSloganMatch = item.productSlogan
-        ? item.productSlogan.toLowerCase().includes(search)
-        : false;
-      const productNotesMatch = item.productNotes
-        ? item.productNotes.toLowerCase().includes(search)
-        : false;
-      const productMadeInMatch = item.productMadeIn
-        ? item.productMadeIn.toLowerCase().includes(search)
-        : false;
-      const priceMatch =
-        !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
-          ? item.productSKU &&
-            item.productSKU.length > 0 &&
-            item.productSKU[0].price >= minAmount &&
-            item.productSKU[0].price <= maxAmount
-          : true;
-      return (
-        (productNameMatch ||
-          productDescriptionMatch ||
-          productSloganMatch ||
-          productNotesMatch ||
-          productMadeInMatch) &&
-        priceMatch
-      );
-    });
-    //sortBy: 0: Giá tăng dần, 1: Giá giảm dần, 2: mới nhất, 3: cũ nhất, 4: phổ biến nhất, 5: bán chạy nhất
-    switch (sortBy) {
-      case 0:
-        filteredResult.sort((a, b) => {
-          return a.productSKU[0].price - b.productSKU[0].price;
-        });
-        break;
-      case 1:
-        filteredResult.sort((a, b) => {
-          return b.productSKU[0].price - a.productSKU[0].price;
-        });
-        break;
-      case 2:
-        filteredResult.sort((a, b) => {
-          return new Date(b.createdDate) - new Date(a.createdDate);
-        });
-        break;
-      case 3:
-        filteredResult.sort((a, b) => {
-          return new Date(a.createdDate) - new Date(b.createdDate);
-        });
-        break;
-
-      case 4:
-        filteredResult.sort((a, b) => {
-          return (
-            b.sellQuantity / b.productSKU[0].price -
-            a.sellQuantity / a.productSKU[0].price
-          );
-        });
-        break;
-      case 5:
-        filteredResult.sort((a, b) => {
-          return b.sellQuantity - a.sellQuantity;
-        });
-        break;
-      default:
-        break;
-    }
-    // Phân trang
-    const paginatedResult = filteredResult.slice(offset, offset + limit);
-
-    response
-      .status(200)
-      .json({ result: paginatedResult, total: filteredResult.length });
+    const paginatedResultID = resultID.slice(offset, offset + limit);
+    const products = await getListProductByListID(paginatedResultID);
+    response.status(200).json({ result: products, total: resultID.length });
   } catch (error) {
     console.error(error);
     response.status(500).json({ errorCode: error });
@@ -626,116 +463,21 @@ router.get("/get-list-new", async (request, response) => {
 });
 
 router.get("/get-list-hot", async (request, response) => {
+  const key = "list_id_hot";
   try {
+    //Sản phẩm có lượt xem hoặc lượt yêu thích cao
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
-    var sortBy = parseInt(request.query.sortBy);
-    var search = request.query.search ? request.query.search.toLowerCase() : "";
-    var minAmount = parseInt(request.query.minAmount);
-    var maxAmount = parseInt(request.query.maxAmount);
-
-    let resultArray = await RedisService.getJson("listProduct");
-    if (!resultArray) {
-      resultArray = await getListProduct();
-      await RedisService.setJson("listProduct", resultArray);
-      await RedisService.expire("listProduct", 60 * 60 * 24);
+    //tinh luot xem va luot yeu thich cao trong 10 ngay gan nhat
+    let resultID = await RedisService.getJson(key);
+    if (!resultID) {
+      resultID = await GetList.getIDlisthot();
+      await RedisService.setJson(key, resultID);
+      await RedisService.expire(key, 60 * 5);
     }
-
-    resultArray.sort((a, b) => {
-      const weightSellQuantity = 1; // Trọng số cho sellQuantity
-      const weightPrice = 2; // Trọng số cho price
-      const weightPriceBefore = -1; // Trọng số cho priceBefore (âm để giảm điểm nếu có giảm giá)
-
-      const scoreA =
-        a.sellQuantity * weightSellQuantity +
-        a.price * weightPrice -
-        a.priceBefore * weightPriceBefore;
-      const scoreB =
-        b.sellQuantity * weightSellQuantity +
-        b.price * weightPrice -
-        b.priceBefore * weightPriceBefore;
-
-      return scoreB - scoreA; // Sắp xếp giảm dần theo điểm hotness
-    });
-
-    const filteredResult = resultArray.filter((item) => {
-      const productNameMatch = item.productName
-        ? item.productName.toLowerCase().includes(search)
-        : false;
-      const productDescriptionMatch = item.productDescription
-        ? item.productDescription.toLowerCase().includes(search)
-        : false;
-      const productSloganMatch = item.productSlogan
-        ? item.productSlogan.toLowerCase().includes(search)
-        : false;
-      const productNotesMatch = item.productNotes
-        ? item.productNotes.toLowerCase().includes(search)
-        : false;
-      const productMadeInMatch = item.productMadeIn
-        ? item.productMadeIn.toLowerCase().includes(search)
-        : false;
-      const priceMatch =
-        !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
-          ? item.productSKU &&
-            item.productSKU.length > 0 &&
-            item.productSKU[0].price >= minAmount &&
-            item.productSKU[0].price <= maxAmount
-          : true;
-      return (
-        (productNameMatch ||
-          productDescriptionMatch ||
-          productSloganMatch ||
-          productNotesMatch ||
-          productMadeInMatch) &&
-        priceMatch
-      );
-    });
-
-    //sortBy: 0: Giá tăng dần, 1: Giá giảm dần, 2: mới nhất, 3: cũ nhất, 4: phổ biến nhất, 5: bán chạy nhất
-    switch (sortBy) {
-      case 0:
-        filteredResult.sort((a, b) => {
-          return a.productSKU[0].price - b.productSKU[0].price;
-        });
-        break;
-      case 1:
-        filteredResult.sort((a, b) => {
-          return b.productSKU[0].price - a.productSKU[0].price;
-        });
-        break;
-      case 2:
-        filteredResult.sort((a, b) => {
-          return new Date(b.createdDate) - new Date(a.createdDate);
-        });
-        break;
-      case 3:
-        filteredResult.sort((a, b) => {
-          return new Date(a.createdDate) - new Date(b.createdDate);
-        });
-        break;
-
-      case 4:
-        filteredResult.sort((a, b) => {
-          return (
-            b.sellQuantity / b.productSKU[0].price -
-            a.sellQuantity / a.productSKU[0].price
-          );
-        });
-        break;
-      case 5:
-        filteredResult.sort((a, b) => {
-          return b.sellQuantity - a.sellQuantity;
-        });
-        break;
-      default:
-        break;
-    }
-    // Phân trang
-    const paginatedResult = filteredResult.slice(offset, offset + limit);
-
-    response
-      .status(200)
-      .json({ result: paginatedResult, total: filteredResult.length });
+    const paginatedResultID = resultID.slice(offset, offset + limit);
+    const products = await getListProductByListID(paginatedResultID);
+    response.status(200).json({ result: products, total: resultID.length });
   } catch (error) {
     console.log("time e: ", new Date().toISOString());
     console.error(error);
@@ -744,108 +486,21 @@ router.get("/get-list-hot", async (request, response) => {
 });
 
 router.get("/get-list-good-price-today", async (request, response) => {
+  const key = "list_id_good_price_today";
   try {
+    //Sản phẩm có giá cả phải chăng
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
-    var search = request.query.search ? request.query.search.toLowerCase() : "";
-    var sortBy = parseInt(request.query.sortBy);
-    var minAmount = parseInt(request.query.minAmount);
-    var maxAmount = parseInt(request.query.maxAmount);
 
-    let resultArray = await RedisService.getJson("listProduct");
-    if (!resultArray) {
-      resultArray = await getListProduct();
-      await RedisService.setJson("listProduct", resultArray);
-      await RedisService.expire("listProduct", 60 * 60 * 24);
+    let resultID = await RedisService.getJson(key);
+    if (!resultID) {
+      resultID = await GetList.getIDlistgoodprice();
+      await RedisService.setJson(key, resultID);
+      await RedisService.expire(key, 60 * 5);
     }
-
-    resultArray.sort((a, b) => {
-      const calculateDiscountRate = (product) =>
-        (product.priceBefore - product.price) / product.priceBefore;
-
-      const discountRateB = calculateDiscountRate(b.productSKU[0]);
-      const discountRateA = calculateDiscountRate(a.productSKU[0]);
-
-      return discountRateB - discountRateA;
-    });
-
-    const filteredResult = resultArray.filter((item) => {
-      const productNameMatch = item.productName
-        ? item.productName.toLowerCase().includes(search)
-        : false;
-      const productDescriptionMatch = item.productDescription
-        ? item.productDescription.toLowerCase().includes(search)
-        : false;
-      const productSloganMatch = item.productSlogan
-        ? item.productSlogan.toLowerCase().includes(search)
-        : false;
-      const productNotesMatch = item.productNotes
-        ? item.productNotes.toLowerCase().includes(search)
-        : false;
-      const productMadeInMatch = item.productMadeIn
-        ? item.productMadeIn.toLowerCase().includes(search)
-        : false;
-      const priceMatch =
-        !isNaN(minAmount) && !isNaN(maxAmount) // Check if minAmount and maxAmount are valid numbers
-          ? item.productSKU &&
-            item.productSKU.length > 0 &&
-            item.productSKU[0].price >= minAmount &&
-            item.productSKU[0].price <= maxAmount
-          : true;
-      return (
-        (productNameMatch ||
-          productDescriptionMatch ||
-          productSloganMatch ||
-          productNotesMatch ||
-          productMadeInMatch) &&
-        priceMatch
-      );
-    });
-    //sortBy: 0: Giá tăng dần, 1: Giá giảm dần, 2: mới nhất, 3: cũ nhất, 4: phổ biến nhất, 5: bán chạy nhất
-    switch (sortBy) {
-      case 0:
-        filteredResult.sort((a, b) => {
-          return a.productSKU[0].price - b.productSKU[0].price;
-        });
-        break;
-      case 1:
-        filteredResult.sort((a, b) => {
-          return b.productSKU[0].price - a.productSKU[0].price;
-        });
-        break;
-      case 2:
-        filteredResult.sort((a, b) => {
-          return new Date(b.createdDate) - new Date(a.createdDate);
-        });
-        break;
-      case 3:
-        filteredResult.sort((a, b) => {
-          return new Date(a.createdDate) - new Date(b.createdDate);
-        });
-        break;
-
-      case 4:
-        filteredResult.sort((a, b) => {
-          return (
-            b.sellQuantity / b.productSKU[0].price -
-            a.sellQuantity / a.productSKU[0].price
-          );
-        });
-        break;
-      case 5:
-        filteredResult.sort((a, b) => {
-          return b.sellQuantity - a.sellQuantity;
-        });
-        break;
-      default:
-        break;
-    }
-    // Phân trang
-    const paginatedResult = filteredResult.slice(offset, offset + limit);
-
-    response
-      .status(200)
-      .json({ result: paginatedResult, total: filteredResult.length });
+    const paginatedResultID = resultID.slice(offset, offset + limit);
+    const products = await getListProductByListID(paginatedResultID);
+    response.status(200).json({ result: products, total: resultID.length });
   } catch (error) {
     console.error(error);
     response.status(500).json({ errorCode: error });
