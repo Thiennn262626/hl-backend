@@ -131,7 +131,7 @@ router.get("/detail", async (request, response) => {
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
     var search = request.query.search ? request.query.search.toLowerCase() : "";
-    var sortBy = parseInt(request.query.sortBy);
+    var sortBy = parseInt(request.query.sortBy) || 0;
     var minAmount = parseInt(request.query.minAmount);
     var maxAmount = parseInt(request.query.maxAmount);
 
@@ -184,40 +184,26 @@ router.get("/detail", async (request, response) => {
         priceMatch
       );
     });
-    //sortBy: 0: Giá tăng dần, 1: Giá giảm dần, 2: mới nhất, 3: cũ nhất, 4: phổ biến nhất, 5: bán chạy nhất
+    //sortBy: 1: Giá tăng dần, 2: Giá giảm dần, 3: mới nhất, 4: cũ nhất,
     switch (sortBy) {
-      case 0:
+      case 1:
         filteredResult.sort((a, b) => {
           return a.productSKU[0].price - b.productSKU[0].price;
         });
         break;
-      case 1:
+      case 2:
         filteredResult.sort((a, b) => {
           return b.productSKU[0].price - a.productSKU[0].price;
         });
         break;
-      case 2:
+      case 3:
         filteredResult.sort((a, b) => {
           return new Date(b.createdDate) - new Date(a.createdDate);
         });
         break;
-      case 3:
-        filteredResult.sort((a, b) => {
-          return new Date(a.createdDate) - new Date(b.createdDate);
-        });
-        break;
-
       case 4:
         filteredResult.sort((a, b) => {
-          return (
-            b.sellQuantity / b.productSKU[0].price -
-            a.sellQuantity / a.productSKU[0].price
-          );
-        });
-        break;
-      case 5:
-        filteredResult.sort((a, b) => {
-          return b.sellQuantity - a.sellQuantity;
+          return new Date(a.createdDate) - new Date(b.createdDate);
         });
         break;
       default:
