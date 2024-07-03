@@ -131,7 +131,6 @@ async function getIDlistnew() {
     `;
     const result = await new sql.Request().query(query);
     const top120 = result.recordset.slice(0, 120);
-    shuffleArray(top120);
     return top120.map((item) => item.product_id);
   } catch (error) {
     throw error;
