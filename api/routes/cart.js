@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const { sql } = require("../../config");
+const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 
@@ -144,6 +145,14 @@ router.get(
     try {
       const carts = await getCartList(request.user_id);
       response.status(200).json(carts);
+      let cartids = [];
+      carts.forEach((item) => {
+        cartids.push(item.productID);
+      });
+      const newcartids = cartids.slice(0, 4);
+      console.log("newcartids: ", newcartids);
+      const key = `cart_${request.user_id}`;
+      RedisService.setJson(key, newcartids);
     } catch (error) {
       handleErrorResponse(error, response);
     }

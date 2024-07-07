@@ -17,6 +17,11 @@ const upload = multer({
   storage: storage,
 });
 
+function resetListProduct() {
+  RedisService.del("list_id_new");
+  RedisService.del("list_id_good_price_today");
+}
+
 router.post(
   "/create-product",
   checkAuth,
@@ -113,6 +118,7 @@ router.post(
           await transaction.rollback();
           throw err;
         });
+      resetListProduct();
       return {};
     } catch (error) {
       console.log(error);
@@ -1022,6 +1028,7 @@ router.post("/enable-product", checkAuth, checkRoleAdmin, async (req, res) => {
         message: "Invalid input data",
       });
     }
+    resetListProduct();
   } catch (error) {
     console.log(error);
     if (error.code === "EREQUEST") {
@@ -1063,6 +1070,7 @@ router.post("/enable-sku", checkAuth, checkRoleAdmin, async (req, res) => {
         message: "Invalid input data",
       });
     }
+    resetListProduct();
   } catch (error) {
     console.log(error);
     res.status(500).json({
@@ -1106,6 +1114,7 @@ router.post("/restock-sku", checkAuth, checkRoleAdmin, async (req, res) => {
         error: "Failed to restock SKU.",
       });
     }
+    resetListProduct();
   } catch (error) {
     console.error("Error restocking SKU:", error.message);
     res.status(500).json({
@@ -1178,6 +1187,7 @@ router.post(
           error: "Failed to update SKU price.",
         });
       }
+      resetListProduct();
     } catch (error) {
       console.error("Error updating SKU price:", error.message);
       res.status(500).json({
@@ -1250,6 +1260,7 @@ router.post(
           error: "Failed to update SKU price.",
         });
       }
+      resetListProduct();
     } catch (error) {
       console.error("Error updating SKU price:", error.message);
       res.status(500).json({
@@ -1301,6 +1312,7 @@ router.post(
       } else {
         res.status(500).json({ message: "Failed to update product info" });
       }
+      resetListProduct();
     } catch (error) {
       console.error("Error updating product info:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -1385,6 +1397,7 @@ router.post(
           .status(500)
           .json({ message: "Failed to update product delivery info" });
       }
+      resetListProduct();
     } catch (error) {
       console.error("Error updating product delivery info:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -1468,6 +1481,7 @@ router.post(
           await transaction.rollback();
           throw err;
         });
+      resetListProduct();
       return {};
     } catch (error) {
       console.error("Error updating product images:", error);

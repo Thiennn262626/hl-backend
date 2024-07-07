@@ -88,7 +88,6 @@ async function getListSubscribe(day) {
       .query(query);
     return result.recordset;
   } catch (error) {
-    console.log(error);
     throw "Error get list subcribe";
   }
 }
@@ -154,7 +153,6 @@ async function getIDlistbestseller() {
     const result = await new sql.Request().input("day", -30).query(query);
     const top100 = result.recordset.slice(0, 100);
     shuffleArray(top100);
-    console.log(top100);
     return top100.map((item) => item.product_id);
   } catch (error) {
     throw error;

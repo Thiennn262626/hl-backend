@@ -15,7 +15,7 @@ initRedis.initRedis();
 var client = require("./services/elasticsearch.service");
 
 client.cluster.health({}, function (err, resp, status) {
-  console.log("-- Client Health --", resp);
+  console.log("-- Client Health --", resp.status);
 });
 
 //import file

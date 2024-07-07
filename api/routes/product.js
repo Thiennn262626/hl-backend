@@ -8,7 +8,7 @@ const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 const GetList = require("../../utils/product_controller/get_list");
-const ContentBasedRecommender = require("../../lib/ContentBasedRecommender");
+
 const { TrainingContendBaseGetByProduct } = require("../../lib/scheduler");
 const e = require("express");
 async function getProductDetail(idProduct) {
@@ -29,7 +29,8 @@ async function getProductDetail(idProduct) {
       p.height AS productHeight,
       p.width AS productWidth,
       p.length AS productLength,
-      p.weight AS productWeight,  
+      p.weight AS productWeight, 
+      p.enable AS productEnable, 
       ps.id AS productSKUID,
       ps.price AS price,
       ps.priceBefore AS priceBefore,
@@ -45,7 +46,7 @@ async function getProductDetail(idProduct) {
       LEFT JOIN Media AS m ON p.id = m.id_product
       LEFT JOIN ProductAttributeValue AS pav ON ps.idAttributeValue1 = pav.id AND m.productAttributeValueID = pav.id
       LEFT JOIN Category as c ON p.id_Category = c.id
-      WHERE p.id = @idProduct AND ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
+      WHERE p.id = @idProduct
     `;
 
     const result = await new sql.Request()
@@ -89,6 +90,7 @@ async function getProductDetail(idProduct) {
           productWidth: item.productWidth,
           productLength: item.productLength,
           productWeight: item.productWeight,
+          productEnable: item.productEnable ? 1 : 0,
           medias: [],
           seller: {
             sellerID: "75B9BA7C-0258-4830-9F08-66B74720229B",
@@ -177,7 +179,7 @@ router.get("/get-detail", async (request, response) => {
       //;
       result = await getProductDetail(idProduct);
       await RedisService.setJson(`product_${idProduct}`, result);
-      await RedisService.expire(`product_${idProduct}`, 1001);
+      await RedisService.expire(`product_${idProduct}`, 100);
     }
     response.status(200).json(result);
   } catch (error) {
@@ -266,9 +268,21 @@ router.get(
     try {
       var offset = parseInt(request.query.offset) || 0;
       var limit = parseInt(request.query.limit) || 10;
-      let resultID = await RedisService.getJson(
-        "collaborative_filtering_by_time"
-      );
+      console.log("offset: ", offset, "limit: ", limit);
+      const key = `list_id_of_user_${request.user_id}`;
+      resultID = await RedisService.getJson(key);
+      console.log("resultID: ", resultID);
+      // if (offset === 0) {
+      //   resultID = await processIDS(request.user_id);
+      //   await RedisService.setJson(key, resultID);
+      // } else {
+      //   resultID = await RedisService.getJson(key);
+      //   if (!resultID) {
+      //     resultID = await processIDS(request.user_id);
+      //     await RedisService.setJson(key, resultID);
+      //   }
+      // }
+      console.log("resultID: ", resultID?.length);
       const paginatedResultID = resultID.slice(offset, offset + limit);
       const products = await getListProductByListID(paginatedResultID);
       response.status(200).json({ result: products, total: resultID.length });
@@ -278,6 +292,72 @@ router.get(
     }
   }
 );
+
+async function processIDS(user_id) {
+  try {
+    console.log("processIDS of user_id: ", user_id);
+    const keys = [
+      `newest_order_${user_id}`,
+      `cart_${user_id}`,
+      `subcribe_${user_id}`,
+      `attention_${user_id}`,
+      `collaborative_filtering_user_${user_id}`,
+      "collaborative_filtering_by_time",
+    ];
+
+    const [
+      lastOrder,
+      lastCart,
+      lastSubcribe,
+      lastAttention,
+      products_rcm,
+      collaborative_filtering,
+    ] = await Promise.all(keys.map((key) => RedisService.getJson(key)));
+
+    const possibleLists = [
+      lastOrder,
+      lastCart,
+      lastSubcribe,
+      lastAttention,
+      products_rcm?.slice(0, 5),
+    ].filter((list) => list && list.length > 0);
+    // Chọn ngẫu nhiên một mảng từ các mảng không rỗng
+    const randomList =
+      possibleLists[Math.floor(Math.random() * possibleLists.length)];
+    console.log("randomList: ", randomList);
+    let newID = [];
+    if (randomList) {
+      const listRamdon = randomList.slice(0, 5); // Lấy 5 phần tử đầu tiên
+      for (const item of listRamdon) {
+        const recommendation = await RedisService.getJson(
+          `recommendation-content-based-${item}`
+        );
+        newID = newID.concat(recommendation?.slice(0, 10)); // Lấy 5 phần tử đầu tiên của mỗi recommendation
+      }
+      let idArray = newID
+        .filter((item) => item !== undefined) // Loại bỏ các giá trị undefined
+        .map((item) => item.id); // Chuyển đổi thành mảng chỉ chứa id
+      newID = Array.from(new Set(idArray)); // Loại bỏ các id trùng lặp
+    }
+    console.log("newID: ", newID?.length);
+    const resultIDSet = new Set([
+      ...(newID || []),
+      ...(lastOrder || []),
+      ...(lastCart || []),
+      ...(products_rcm || []),
+      ...(lastSubcribe || []),
+      ...(lastAttention || []),
+      ...(collaborative_filtering || []),
+    ]);
+
+    const resultID = Array.from(resultIDSet);
+
+    return resultID;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
 
 async function getListProductByListID(paginatedResultID) {
   try {
@@ -393,97 +473,105 @@ router.get("/get-list-new", async (request, response) => {
   }
 });
 
+// async function getListProduct() {
+//   try {
+//     const queryProduct = `
+//     SELECT
+//     p.id AS productID,
+//     p.name AS productName,
+//     p.description AS productDescription,
+//     p.slogan AS productSlogan,
+//     p.notes AS productNotes,
+//     p.madeIn AS productMadeIn,
+//     p.sellQuantity AS sellQuantity,
+//     p.createdDate AS createdDate,
+//     ps.id AS productSKUID,
+//     ps.price AS price,
+//     ps.priceBefore AS priceBefore,
+//     m.id AS mediaID,
+//     m.linkString AS linkString,
+//     m.title AS title,
+//     m.description AS description
+//     FROM Product as p
+//     JOIN ProductSku as ps ON p.id = ps.idProduct
+//     JOIN Media as m ON p.id = m.id_product
+//     WHERE ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
+//             `;
+//     const result = await new sql.Request().query(queryProduct);
+
+//     const resultMap = {};
+//     result.recordset.forEach((item) => {
+//       const { productID, productSKUID, mediaID } = item;
+//       if (!resultMap[productID]) {
+//         resultMap[productID] = {
+//           productID: productID,
+//           productName: item.productName,
+//           productDescription: item.productDescription,
+//           productSlogan: item.productSlogan,
+//           productNotes: item.productNotes,
+//           productMadeIn: item.productMadeIn,
+//           sellQuantity: item.sellQuantity,
+//           createdDate: item.createdDate,
+//           medias: [
+//             {
+//               mediaID: mediaID,
+//               linkString: item.linkString,
+//               title: item.title ? item.title : "",
+//               description: item.description ? item.description : "",
+//             },
+//           ],
+//           productSKU: [
+//             {
+//               productSKUID: productSKUID,
+//               price: item.price,
+//               priceBefore: item.priceBefore,
+//             },
+//           ],
+//         };
+//       }
+//     });
+
+//     const resultArray = Object.values(resultMap);
+//     return resultArray;
+//   } catch (error) {
+//     throw error;
+//   }
+// }
+
+// router.get("/backup-elastic", async (request, response) => {
+//   try {
+//     const query = "SELECT id FROM Product";
+//     const result = await sql.query(query);
+//     for (const item of result.recordset) {
+//       const result = await getProductDetail(item.id);
+//       console.log(result.productID);
+//       await client.index(
+//         {
+//           index: "products",
+//           id: result.productID,
+//           body: result,
+//         },
+//         function (err, resp, status) {
+//           console.log(resp);
+//         }
+//       );
+//     }
+//     response.status(200).json({
+//       message: "Backup data to Elasticsearch successfully",
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     response.status(500).json({ errorCode: error });
+//   }
+// });
 var client = require("../../services/elasticsearch.service");
 
-async function getListProduct() {
-  try {
-    const queryProduct = `
-    SELECT
-    p.id AS productID,
-    p.name AS productName,
-    p.description AS productDescription,
-    p.slogan AS productSlogan,
-    p.notes AS productNotes,
-    p.madeIn AS productMadeIn,
-    p.sellQuantity AS sellQuantity,
-    p.createdDate AS createdDate,
-    ps.id AS productSKUID,
-    ps.price AS price,
-    ps.priceBefore AS priceBefore,
-    m.id AS mediaID,
-    m.linkString AS linkString,
-    m.title AS title,
-    m.description AS description
-    FROM Product as p
-    JOIN ProductSku as ps ON p.id = ps.idProduct
-    JOIN Media as m ON p.id = m.id_product
-    WHERE ps.quantity > 0 AND ps.enable = 1 AND p.enable = 1
-            `;
-    const result = await new sql.Request().query(queryProduct);
-
-    const resultMap = {};
-    result.recordset.forEach((item) => {
-      const { productID, productSKUID, mediaID } = item;
-      if (!resultMap[productID]) {
-        resultMap[productID] = {
-          productID: productID,
-          productName: item.productName,
-          productDescription: item.productDescription,
-          productSlogan: item.productSlogan,
-          productNotes: item.productNotes,
-          productMadeIn: item.productMadeIn,
-          sellQuantity: item.sellQuantity,
-          createdDate: item.createdDate,
-          medias: [
-            {
-              mediaID: mediaID,
-              linkString: item.linkString,
-              title: item.title ? item.title : "",
-              description: item.description ? item.description : "",
-            },
-          ],
-          productSKU: [
-            {
-              productSKUID: productSKUID,
-              price: item.price,
-              priceBefore: item.priceBefore,
-            },
-          ],
-        };
-      }
-    });
-
-    const resultArray = Object.values(resultMap);
-    return resultArray;
-  } catch (error) {
-    throw error;
-  }
-}
-
-router.get("/backup-elastic", async (request, response) => {
-  try {
-    const resultArray = await getListProduct();
-    for (const item of resultArray) {
-      await client.index({
-        index: "products",
-        id: item.productID,
-        body: item,
-      });
-    }
-    response.status(200).json({
-      message: "Backup data to Elasticsearch successfully",
-    });
-  } catch (error) {
-    console.error(error);
-    response.status(500).json({ errorCode: error });
-  }
-});
 router.get("/get-list-search", async (request, response) => {
   try {
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
     var search = request.query.search || "";
-    var sort = parseInt(request.query.sort); // Đảm bảo sort được parse thành số nguyên
+    var sort = parseInt(request.query.sortBy);
 
     let sortOptions = [];
 
@@ -501,18 +589,62 @@ router.get("/get-list-search", async (request, response) => {
         sortOptions.push({ createdDate: { order: "asc" } });
         break;
       default:
-        sortOptions = []; // Sắp xếp mặc định theo Elasticsearch
+        sortOptions = [];
         break;
+    }
+
+    let query = {
+      bool: {
+        must: [
+          {
+            term: { productEnable: 1 },
+          },
+        ],
+      },
+    };
+
+    if (search) {
+      query.bool.must.push({
+        multi_match: {
+          query: search,
+          fields: ["productName", "productSlogan", "productDescription"],
+        },
+      });
+
+      query.bool.should = [
+        {
+          match_phrase: {
+            productName: {
+              query: search,
+              boost: 4,
+            },
+          },
+        },
+        {
+          match_phrase: {
+            productSlogan: {
+              query: search,
+              boost: 3,
+            },
+          },
+        },
+        {
+          match_phrase: {
+            productDescription: {
+              query: search,
+              boost: 2,
+            },
+          },
+        },
+      ];
+    } else {
+      query.bool.must.push({ match_all: {} });
     }
 
     const result = await client.search({
       index: "products",
       body: {
-        query: {
-          match: {
-            productName: search,
-          },
-        },
+        query: query,
         sort: sortOptions,
         from: offset,
         size: limit,
@@ -520,10 +652,12 @@ router.get("/get-list-search", async (request, response) => {
     });
 
     const products = result.hits.hits.map((item) => item._source);
-    response.status(200).json({ result: products, total: products.length });
+    response
+      .status(200)
+      .json({ result: products, total: result.hits.total.value });
   } catch (error) {
-    console.error(error);
-    response.status(500).json({ errorCode: error });
+    console.error("Error during Elasticsearch search:", error);
+    response.status(500).json({ result: [], total: 0, status: "error" });
   }
 });
 
@@ -594,21 +728,25 @@ router.get("/get-list-same-category", async (request, response) => {
 });
 async function recommendByProduct(productID) {
   try {
-    var key = "recommendation-content-based-" + productID;
-    const rcm = await RedisService.getJson(key);
+    // var key = "recommendation-content-based-" + productID;
+    // const rcm = await RedisService.getJson(key);
 
-    if (rcm) {
-      const top50_product_id = rcm.map((item) => item.id);
-      return {
-        result: top50_product_id,
-      };
-    } else {
-      const rcm = await TrainingContendBaseGetByProduct(productID);
-      const top50_product_id = rcm.map((item) => item.id);
-      return {
-        result: top50_product_id,
-      };
-    }
+    // if (rcm) {
+    //   const top50_product_id = rcm.map((item) => item.id);
+    //   return {
+    //     result: top50_product_id,
+    //   };
+    // } else {
+    const rcm = await TrainingContendBaseGetByProduct(productID);
+    const top50_product_id = rcm.map((item) => item.id);
+    console.log(
+      `recommendation-content-based-${productID}`,
+      top50_product_id.length
+    );
+    return {
+      result: top50_product_id,
+    };
+    // }
   } catch (error) {
     throw error;
   }

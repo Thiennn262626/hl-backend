@@ -9,6 +9,7 @@ const {
 } = require("../../utils/momo_payment");
 
 const { sql } = require("../../config");
+const RedisService = require("../../services/redis.service");
 const mail_util = require("../../utils/mail");
 
 const checkAuth = require("../../middleware/check_auth");
@@ -551,8 +552,21 @@ async function getListOrderByStatus(orderStatus, user_id) {
     });
 
     const resultArray = Object.values(resultMap);
+    if (orderStatus == 0) {
+      const orderlast = resultArray.length > 0 ? resultArray[0] : null;
+      let productids = [];
+      orderlast
+        ? orderlast.dataOrderItem.forEach((item) => {
+            productids.push(item.productID);
+          })
+        : null;
+      const key = `newest_order_${user_id}`;
+      console.log("item in newest order: ", productids);
+      RedisService.setJson(key, productids || []);
+    }
     return resultArray;
   } catch (error) {
+    console.log(error);
     throw "Error in getOrderId";
   }
 }

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const { sql } = require("../../config");
+const RedisService = require("../../services/redis.service");
 const checkAuth = require("../../middleware/check_auth");
 const checkRole = require("../../middleware/check_role_user");
 
@@ -103,6 +104,7 @@ router.post("/subcribe", checkAuth, checkRole, async (request, response) => {
         status: 200,
         message: "Subscription successful",
       });
+      await getListSubcribeByUser(request.user_id);
     } catch (error) {
       // Log lỗi để dễ dàng theo dõi và giải quyết sự cố
       console.error("Error executing SQL query:", error);
@@ -118,6 +120,32 @@ router.post("/subcribe", checkAuth, checkRole, async (request, response) => {
     });
   }
 });
+
+async function getListSubcribeByUser(user_id) {
+  try {
+    const query = `
+    SELECT TOP 3
+    s.idProduct AS product_id
+    FROM Subcribe AS s
+    JOIN Product AS p ON p.id = s.idProduct
+    WHERE s.id_user = '76297FDF-519A-423F-9E0E-76B5C1AB7B0F'
+    ORDER BY s.createdDate DESC
+    `;
+
+    const result = await new sql.Request()
+      .input("user_id", user_id)
+      .query(query);
+    let products = [];
+    for (const product of result.recordset) {
+      products.push(product.product_id);
+    }
+    console.log("getListSubcribeByUser: ", products);
+    const key = `subcribe_${user_id}`;
+    RedisService.setJson(key, products);
+  } catch (error) {
+    throw "ERROR GET LIST SUBCRIBE BY USER";
+  }
+}
 
 router.post("/unsubcribe", checkAuth, checkRole, async (request, response) => {
   try {
