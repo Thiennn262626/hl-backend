@@ -17,7 +17,7 @@ async function authenticateToken(request, response, next) {
       next();
     }
   } catch (error) {
-    console.log(error);
+    console.log("jwt expired");
     response.status(401).json({
       statusCode: 401,
       message: "Unauthorized",

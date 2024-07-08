@@ -181,11 +181,14 @@ router.get("/get-detail", async (request, response) => {
       await RedisService.setJson(`product_${idProduct}`, result);
       await RedisService.expire(`product_${idProduct}`, 100);
     }
+    if (result.productEnable === 0) {
+      throw "Product is not available";
+    }
     response.status(200).json(result);
   } catch (error) {
     console.log(error);
     response.status(500).json({
-      error: error,
+      errorCode: error,
     });
   }
 });
@@ -203,7 +206,7 @@ router.get("/get-list-best-seller", async (request, response) => {
       await RedisService.setJson(key, resultID);
       await RedisService.expire(key, 60 * 5);
     }
-    const paginatedResultID = resultID.slice(offset, offset + limit);
+    const paginatedResultID = resultID?.slice(offset, offset + limit);
     const products = await getListProductByListID(paginatedResultID);
     response.status(200).json({ result: products, total: resultID.length });
   } catch (error) {
@@ -270,20 +273,20 @@ router.get(
       var limit = parseInt(request.query.limit) || 10;
       console.log("offset: ", offset, "limit: ", limit);
       const key = `list_id_of_user_${request.user_id}`;
-      resultID = await RedisService.getJson(key);
-      console.log("resultID: ", resultID);
-      // if (offset === 0) {
-      //   resultID = await processIDS(request.user_id);
-      //   await RedisService.setJson(key, resultID);
-      // } else {
-      //   resultID = await RedisService.getJson(key);
-      //   if (!resultID) {
-      //     resultID = await processIDS(request.user_id);
-      //     await RedisService.setJson(key, resultID);
-      //   }
-      // }
+      // resultID = await RedisService.getJson(key);
+      // console.log("resultID: ", resultID);
+      if (offset === 0) {
+        resultID = await processIDS(request.user_id);
+        await RedisService.setJson(key, resultID);
+      } else {
+        resultID = await RedisService.getJson(key);
+        if (!resultID) {
+          resultID = await processIDS(request.user_id);
+          await RedisService.setJson(key, resultID);
+        }
+      }
       console.log("resultID: ", resultID?.length);
-      const paginatedResultID = resultID.slice(offset, offset + limit);
+      const paginatedResultID = resultID?.slice(offset, offset + limit);
       const products = await getListProductByListID(paginatedResultID);
       response.status(200).json({ result: products, total: resultID.length });
     } catch (error) {
@@ -341,10 +344,10 @@ async function processIDS(user_id) {
     }
     console.log("newID: ", newID?.length);
     const resultIDSet = new Set([
+      ...(products_rcm || []),
       ...(newID || []),
       ...(lastOrder || []),
       ...(lastCart || []),
-      ...(products_rcm || []),
       ...(lastSubcribe || []),
       ...(lastAttention || []),
       ...(collaborative_filtering || []),
@@ -844,13 +847,14 @@ router.get("/get-product-sku-by-product-id", async (request, response) => {
       return;
     }
 
-    let skuss = await RedisService.getJson("product_sku_" + productID);
-    if (!skuss) {
-      //;
-      skuss = await processSkus(productID);
-      await RedisService.setJson("product_sku_" + productID, skuss);
-      await RedisService.expire("product_sku_" + productID, 3000);
-    }
+    // let skuss = await RedisService.getJson("product_sku_" + productID);
+    // if (!skuss) {
+    //   //;
+    skuss = await processSkus(productID);
+    //   await RedisService.setJson("product_sku_" + productID, skuss);
+    //   await RedisService.expire("product_sku_" + productID, 3000);
+    // }
+    console.log("product_sku_" + skuss);
     response.status(200).json({
       productID: productID,
       productSKU: skuss,
@@ -889,7 +893,7 @@ async function processSkus(productID) {
       LEFT JOIN ProductAttribute AS pa2 ON pav2.productAttributeID = pa2.id
       JOIN Product ON ps.idProduct = Product.id 
       LEFT JOIN Media ON Product.id = Media.id_product
-      WHERE idProduct = @productID AND ps.quantity > 0 AND ps.enable = 1
+      WHERE idProduct = @productID AND ps.quantity > 0 AND ps.enable = 1 AND Product.enable = 1
       `;
     const result = await new sql.Request()
       .input("productID", productID)

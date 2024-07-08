@@ -3,6 +3,7 @@ const { sql } = require("../../config");
 
 async function getIDlisthot() {
   try {
+    // Lấy danh sách attentions và subscribes trong 10 ngày qua
     const attentions = await getListAttention(-10);
     const subscribes = await getListSubscribe(-10);
 
@@ -139,6 +140,7 @@ async function getIDlistnew() {
 
 async function getIDlistbestseller() {
   try {
+    // lấy top 100 sản phẩm bán chạy nhất trong 30 ngày qua
     const query = `
     SELECT 
     oi.product_id,

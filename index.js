@@ -41,6 +41,7 @@ const adminCategoryRouter = require("./admin/routes/category");
 const adminProductRouter = require("./admin/routes/product");
 const adminOrderRouter = require("./admin/routes/order");
 const adminUserRouter = require("./admin/routes/user");
+const adminHomeRouter = require("./admin/routes/home");
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -70,6 +71,7 @@ app.use("/api/hlshop/admin/product-category", adminCategoryRouter);
 app.use("/api/hlshop/admin/product", adminProductRouter);
 app.use("/api/hlshop/admin/order", adminOrderRouter);
 app.use("/api/hlshop/admin/users", adminUserRouter);
+app.use("/api/hlshop/admin/home", adminHomeRouter);
 
 app.get("/", function (request, response) {
   response.send({
