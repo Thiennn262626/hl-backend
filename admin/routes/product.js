@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const axios = require("axios");
 //
 const { sql } = require("../../config");
 
@@ -9,17 +10,17 @@ const checkRoleAdmin = require("../../middleware/check_role_admin");
 const RedisService = require("../../services/redis.service");
 
 const firebase = require("../../firebase");
-
+const { TrainingContendBase } = require("../../lib/scheduler");
 const multer = require("multer");
-const e = require("express");
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
 });
 
-function resetListProduct() {
+async function resetListProduct() {
   RedisService.del("list_id_new");
   RedisService.del("list_id_good_price_today");
+  await TrainingContendBase();
 }
 
 router.post(
@@ -1722,6 +1723,103 @@ async function getProductDetail(idProduct) {
     resultMap[idProduct].item_rating_summary = item_rating_summary;
     const resultArray = Object.values(resultMap);
     return resultArray[0];
+  } catch (error) {
+    throw error;
+  }
+}
+
+router.get(
+  "/get_predict_best_sale",
+  checkAuth,
+  checkRoleAdmin,
+  async (req, res) => {
+    try {
+      const url = `http://0.0.0.0:80/train-by-time`;
+      await axios.get(url);
+      const collaborative_filtering_by_time_ids = await RedisService.getJson(
+        "collaborative_filtering_by_time"
+      );
+      const paginatedResultID =
+        collaborative_filtering_by_time_ids?.slice(0, 24) || [];
+      const products = await getListProductByListID(paginatedResultID);
+      res.status(200).json({ result: products, total: products.length });
+    } catch (error) {
+      console.error(error);
+      response.status(500).json({ errorCode: error });
+    }
+  }
+);
+
+async function getListProductByListID(paginatedResultID) {
+  try {
+    const queryProduct = `
+      DECLARE @NewValues NVARCHAR(MAX);
+      SET @NewValues = @paginatedResult;
+      WITH NumberedValues AS (
+          SELECT ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS RowNumber, value AS productID
+          FROM OPENJSON(@NewValues)
+      )
+      SELECT
+          p.id AS productID,
+          p.name AS productName,
+          p.description AS productDescription,
+          p.slogan AS productSlogan,
+          p.notes AS productNotes,
+          p.madeIn AS productMadeIn,
+          p.sellQuantity AS sellQuantity,
+          p.createdDate AS createdDate,
+          p.enable AS productEnable,
+          ps.id AS productSKUID,
+          ps.price AS price,
+          ps.priceBefore AS priceBefore,
+          m.id AS mediaID,
+          m.linkString AS linkString,
+          m.title AS title,
+          m.description AS description
+        FROM NumberedValues AS nv
+        JOIN Product as p ON p.id = nv.productID
+        JOIN ProductSku as ps ON p.id = ps.idProduct
+        JOIN Media as m ON p.id = m.id_product
+        WHERE p.enable = 1
+        ORDER BY nv.RowNumber;
+            `;
+    const result = await new sql.Request()
+      .input("paginatedResult", sql.NVarChar, JSON.stringify(paginatedResultID))
+      .query(queryProduct);
+    const resultMap = {};
+    result.recordset.forEach((item) => {
+      const { productID, productSKUID, mediaID } = item;
+      if (!resultMap[productID]) {
+        resultMap[productID] = {
+          productID: productID,
+          productName: item.productName,
+          productDescription: item.productDescription,
+          productSlogan: item.productSlogan,
+          productNotes: item.productNotes,
+          productMadeIn: item.productMadeIn,
+          sellQuantity: item.sellQuantity,
+          createdDate: item.createdDate,
+          medias: [
+            {
+              mediaID: mediaID,
+              linkString: item.linkString,
+              title: item.title ? item.title : "",
+              description: item.description ? item.description : "",
+            },
+          ],
+          productSKU: [
+            {
+              productSKUID: productSKUID,
+              price: item.price,
+              priceBefore: item.priceBefore,
+            },
+          ],
+        };
+      }
+    });
+
+    const resultArray = Object.values(resultMap);
+    return resultArray;
   } catch (error) {
     throw error;
   }

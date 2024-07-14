@@ -154,6 +154,7 @@ router.post("/signup-phone", async (request, response) => {
 });
 
 router.post("/verify-otp", async (request, response) => {
+  let transaction = new sql.Transaction();
   try {
     const idAccount = request.body.userID;
     const idOtp = request.body.uuid;
@@ -170,29 +171,55 @@ router.post("/verify-otp", async (request, response) => {
     const expired = today.getTime() - result.recordset[0].createdDate.getTime();
     if (expired < 32000) {
       if (result.recordset[0].value === parseInt(otp)) {
-        const queryAccount =
-          "UPDATE Account SET isVerify  = 1 OUTPUT inserted.userLogin WHERE id = @idAccount";
-        const accountResult = await new sql.Request()
-          .input("idAccount", idAccount)
-          .query(queryAccount);
+        await transaction
+          .begin()
+          .then(async () => {
+            const queryAccount =
+              "UPDATE Account SET isVerify  = 1 OUTPUT inserted.userLogin WHERE id = @idAccount";
+            const accountResult = await transaction
+              .request()
+              .input("idAccount", idAccount)
+              .query(queryAccount);
 
-        const queryUser =
-          "INSERT INTO [User] (id_account, contactFullName, createdDate) VALUES(@idAccount, @contactFullName, @createDated)";
-        const userResult = await new sql.Request()
-          .input("idAccount", idAccount)
-          .input("createDated", result.recordset[0].createdDate)
-          .input("contactFullName", accountResult.recordset[0].userLogin)
-          .query(queryUser);
+            const queryUser = `INSERT INTO [User] (id_account, contactFullName, createdDate) 
+                                OUTPUT inserted.id
+                                VALUES(@idAccount, @contactFullName, @createDated)`;
+            const userResult = await transaction
+              .request()
+              .input("idAccount", idAccount)
+              .input("createDated", result.recordset[0].createdDate)
+              .input("contactFullName", accountResult.recordset[0].userLogin)
+              .query(queryUser);
+            checkIsEmail(accountResult.recordset[0].userLogin) === true
+              ? await createEmail(
+                  userResult.recordset[0].id,
+                  accountResult.recordset[0].userLogin,
+                  1,
+                  transaction
+                )
+              : null;
 
-        const token = jwt.sign({ uuid: idAccount }, process.env.privateKey, {
-          expiresIn: "10h",
-        });
-        response.status(201).json({
-          token: token,
-          userID: idAccount,
-          userLogin: accountResult.recordset[0].userLogin,
-          accountType: 1,
-        });
+            const token = jwt.sign(
+              { uuid: idAccount },
+              process.env.privateKey,
+              {
+                expiresIn: "10h",
+              }
+            );
+
+            await transaction.commit();
+            response.status(201).json({
+              token: token,
+              userID: idAccount,
+              userLogin: accountResult.recordset[0].userLogin,
+              accountType: 1,
+            });
+          })
+          .catch(async (err) => {
+            await transaction.rollback();
+            throw err;
+          });
+        return {};
       } else {
         response.status(400).json({
           errorCode: "MSG0008",
@@ -212,6 +239,47 @@ router.post("/verify-otp", async (request, response) => {
     });
   }
 });
+
+function checkIsEmail(email) {
+  const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  console.log("re.test(email): ", re.test(email));
+  return re.test(email);
+}
+
+async function createEmail(user_id, emailAddress, isDefault, transaction) {
+  try {
+    const query = `
+          UPDATE Email
+          SET createdDate = @createdDate
+          WHERE idUser = @user_id AND emailAddress = @email;
+
+          IF @@ROWCOUNT = 0
+          BEGIN
+              INSERT INTO Email (idUser, emailAddress, isDefault, isVerify, createdDate)
+              VALUES (@user_id, @email, @isDefault, 1, @createdDate);
+          END;
+
+          SELECT 'Action' = CASE WHEN @@ROWCOUNT > 0 THEN 'UPDATE' ELSE 'INSERT' END,
+                'id' = id,
+                'idUser' = idUser
+          FROM Email
+          WHERE idUser = @user_id AND emailAddress = @email;
+        `;
+    const result = await transaction
+      .request()
+      .input("email", emailAddress)
+      .input("isDefault", isDefault)
+      .input("user_id", user_id)
+      .input("createdDate", new Date())
+
+      .query(query);
+    console.log(result);
+    return result.recordset[0].id;
+  } catch (error) {
+    console.log(error);
+    throw "createEmail";
+  }
+}
 
 router.post("/resend-otp-email", async (request, response) => {
   try {
@@ -340,6 +408,7 @@ router.post("/signin-email", async (request, response) => {
               userLogin: email,
               accountType: result.recordset[0].role,
             });
+            callPythonService(result.recordset[0].id);
           }
         } else {
           response.status(400).json({
@@ -361,6 +430,22 @@ router.post("/signin-email", async (request, response) => {
     });
   }
 });
+
+const axios = require("axios");
+function callPythonService(userId) {
+  const url = `http://0.0.0.0:80/get-recommendation-by-user/${userId}`;
+  console.log("url: ", url);
+
+  // Gọi request tới URL bằng axios
+  axios
+    .get(url)
+    .then(() => {
+      console.log("Request sent to Python service successfully.");
+    })
+    .catch((error) => {
+      console.error("Error sending request to Python service:", error);
+    });
+}
 
 router.post("/signin-phone", async (request, response) => {
   try {

@@ -92,6 +92,14 @@ router.post("/create", checkAuth, checkRole, async (request, response) => {
         if (orderItem.receiverAddresse.receiverEmail !== null) {
           mail_util.sendMessageVerifyOrder(orderItem);
         }
+        let product_ids = [];
+        orderItem.dataOrderItem.forEach((item) => {
+          product_ids.push(item.productID);
+        });
+        const key = `newest_order_${idUser}`;
+        console.log("item in newest order: ", product_ids);
+        await RedisService.setJson(key, product_ids || []);
+        await RedisService.expire(key, 60 * 60 * 24);
       })
       .catch(async (err) => {
         await transaction.rollback();
@@ -552,18 +560,6 @@ async function getListOrderByStatus(orderStatus, user_id) {
     });
 
     const resultArray = Object.values(resultMap);
-    if (orderStatus == 0) {
-      const orderlast = resultArray.length > 0 ? resultArray[0] : null;
-      let productids = [];
-      orderlast
-        ? orderlast.dataOrderItem.forEach((item) => {
-            productids.push(item.productID);
-          })
-        : null;
-      const key = `newest_order_${user_id}`;
-      console.log("item in newest order: ", productids);
-      RedisService.setJson(key, productids || []);
-    }
     return resultArray;
   } catch (error) {
     console.log(error);
@@ -1184,6 +1180,9 @@ router.post(
             orderItem.receiverAddresse.receiverEmail !== ""
           ) {
             mail_util.sendMessageVerifyOrder(orderItem);
+            if (orderStatus === 4) {
+              mail_util.sendMessageRatingOrder(orderItem);
+            }
           }
         })
         .catch(async (err) => {

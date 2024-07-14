@@ -215,54 +215,6 @@ router.get("/get-list-best-seller", async (request, response) => {
   }
 });
 
-// router.get(
-//   "/get-list-recommend-by-user",
-//   checkAuth,
-//   checkRole,
-//   async (request, response) => {
-//     try {
-//       const userid = request.user_id;
-//       console.log("userid: ", userid);
-//       var offset = parseInt(request.query.offset) || 0;
-//       var limit = parseInt(request.query.limit) || 10;
-
-//       let resultArray = await RedisService.getJson("listProduct");
-//       if (!resultArray) {
-//         resultArray = await getListProduct();
-//         await RedisService.setJson("listProduct", resultArray);
-//         await RedisService.expire("listProduct", 60 * 60 * 24);
-//       }
-//       //call api from web
-//       res = await recommendByUser(userid);
-//       if (res.result) {
-//         const id_list = res.result;
-
-//         // Lọc resultArray để chỉ bao gồm các phần tử có productID trong id_list
-//         let filteredResultArray = resultArray.filter((item) =>
-//           id_list.includes(item.productID)
-//         );
-
-//         // Sắp xếp filteredResultArray theo thứ tự của id_list
-//         filteredResultArray.sort((a, b) => {
-//           return id_list.indexOf(a.productID) - id_list.indexOf(b.productID);
-//         });
-
-//         resultArray = filteredResultArray;
-//       }
-
-//       // Phân trang
-//       const paginatedResult = resultArray.slice(offset, offset + limit);
-
-//       response.status(200).json({
-//         result: paginatedResult,
-//         total: res.result.length,
-//       });
-//     } catch (error) {
-//       console.error(error);
-//       response.status(500).json({ errorCode: error });
-//     }
-//   }
-// );
 router.get(
   "/get-list-recommend-by-user",
   checkAuth,
@@ -273,7 +225,7 @@ router.get(
       var limit = parseInt(request.query.limit) || 10;
       console.log("offset: ", offset, "limit: ", limit);
       const key = `list_id_of_user_${request.user_id}`;
-      // resultID = await RedisService.getJson(key);
+      resultID = await RedisService.getJson(key);
       // console.log("resultID: ", resultID);
       if (offset === 0) {
         resultID = await processIDS(request.user_id);
@@ -316,7 +268,7 @@ async function processIDS(user_id) {
       products_rcm,
       collaborative_filtering,
     ] = await Promise.all(keys.map((key) => RedisService.getJson(key)));
-
+    console.log("products_rcm: ", products_rcm);
     const possibleLists = [
       lastOrder,
       lastCart,
@@ -343,6 +295,7 @@ async function processIDS(user_id) {
       newID = Array.from(new Set(idArray)); // Loại bỏ các id trùng lặp
     }
     console.log("newID: ", newID?.length);
+    console.log("products_rcm: ", products_rcm);
     const resultIDSet = new Set([
       ...(products_rcm || []),
       ...(newID || []),
@@ -575,7 +528,7 @@ router.get("/get-list-search", async (request, response) => {
     var limit = parseInt(request.query.limit) || 10;
     var search = request.query.search || "";
     var sort = parseInt(request.query.sortBy);
-
+    console.log("/get-list-search: ");
     let sortOptions = [];
 
     switch (sort) {
@@ -731,25 +684,25 @@ router.get("/get-list-same-category", async (request, response) => {
 });
 async function recommendByProduct(productID) {
   try {
-    // var key = "recommendation-content-based-" + productID;
-    // const rcm = await RedisService.getJson(key);
+    var key = "recommendation-content-based-" + productID;
+    const rcm = await RedisService.getJson(key);
 
-    // if (rcm) {
-    //   const top50_product_id = rcm.map((item) => item.id);
-    //   return {
-    //     result: top50_product_id,
-    //   };
-    // } else {
-    const rcm = await TrainingContendBaseGetByProduct(productID);
-    const top50_product_id = rcm.map((item) => item.id);
-    console.log(
-      `recommendation-content-based-${productID}`,
-      top50_product_id.length
-    );
-    return {
-      result: top50_product_id,
-    };
-    // }
+    if (rcm) {
+      const top50_product_id = rcm.map((item) => item.id);
+      return {
+        result: top50_product_id,
+      };
+    } else {
+      const rcm = await TrainingContendBaseGetByProduct(productID);
+      const top50_product_id = rcm.map((item) => item.id);
+      console.log(
+        `recommendation-content-based-${productID}`,
+        top50_product_id.length
+      );
+      return {
+        result: top50_product_id,
+      };
+    }
   } catch (error) {
     throw error;
   }

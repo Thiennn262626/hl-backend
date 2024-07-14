@@ -783,6 +783,7 @@ router.get(
       JOIN Product AS p ON ps.idProduct = p.id
       LEFT JOIN RatingMedia AS rm ON r.id = rm.id_rating
       WHERE u.id = @user_id
+      ORDER BY r.created_date DESC
       `;
       const result = await new sql.Request()
         .input("user_id", request.user_id)

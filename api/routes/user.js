@@ -409,11 +409,7 @@ async function createOtpEmail(otp, createdDate, emailID, transaction) {
 }
 async function createEmail(user_id, emailAddress, isDefault, transaction) {
   try {
-    const queryUser = "SELECT id FROM [User] WHERE id = @user_id";
-    const userResult = await new sql.Request()
-      .input("user_id", user_id)
-      .query(queryUser);
-    query = `
+    const query = `
           UPDATE Email
           SET createdDate = @createdDate
           WHERE idUser = @user_id AND emailAddress = @email;
