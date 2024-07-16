@@ -201,6 +201,7 @@ router.get("/get-list-best-seller", async (request, response) => {
     var limit = parseInt(request.query.limit) || 10;
 
     let resultID = await RedisService.getJson(key);
+    console.log("resultID: ", resultID.length);
     if (!resultID) {
       resultID = await GetList.getIDlistbestseller();
       await RedisService.setJson(key, resultID);
@@ -226,7 +227,7 @@ router.get(
       console.log("offset: ", offset, "limit: ", limit);
       const key = `list_id_of_user_${request.user_id}`;
       resultID = await RedisService.getJson(key);
-      // console.log("resultID: ", resultID);
+      console.log("resultID: ", resultID.length);
       if (offset === 0) {
         resultID = await processIDS(request.user_id);
         await RedisService.setJson(key, resultID);
