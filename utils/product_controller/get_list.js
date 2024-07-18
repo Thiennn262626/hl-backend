@@ -87,6 +87,7 @@ async function getListSubscribe(day) {
     const result = await new sql.Request()
       .input("day", parseInt(day))
       .query(query);
+    console.log("getListSubscribe: ", result.recordset.length);
     return result.recordset;
   } catch (error) {
     throw "Error get list subcribe";
@@ -108,6 +109,7 @@ async function getIDlistgoodprice() {
     const result = await new sql.Request().query(query);
     const top120 = result.recordset.slice(0, 120);
     shuffleArray(top120);
+    console.log("getIDlistgoodprice: ", top120.length);
     return top120.map((item) => item.product_id);
   } catch (error) {
     throw error;
@@ -141,6 +143,7 @@ async function getIDlistnew() {
 async function getIDlistbestseller() {
   try {
     // lấy top 100 sản phẩm bán chạy nhất trong 30 ngày qua
+    console.log("getIDlistbestseller");
     const query = `
     SELECT 
     oi.product_id,
@@ -153,6 +156,7 @@ async function getIDlistbestseller() {
     ORDER BY total_sold DESC;
     `;
     const result = await new sql.Request().input("day", -30).query(query);
+    console.log("getIDlistbestseller: ", result.recordset.length);
     const top100 = result.recordset.slice(0, 100);
     shuffleArray(top100);
     return top100.map((item) => item.product_id);

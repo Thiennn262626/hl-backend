@@ -14,7 +14,7 @@ router.get("/get-list", async (request, response) => {
     if (!resultArray) {
       resultArray = await getListCategory();
       await RedisService.setJson("ListCategory", resultArray);
-      await RedisService.expire("ListCategory", 3000);
+      await RedisService.expire("ListCategory", 30000);
     }
 
     const paginatedResult = resultArray.slice(offset, offset + limit);
@@ -149,7 +149,7 @@ router.get("/detail", async (request, response) => {
         `ListProductByCategory_${idCategory}`,
         resultArray
       );
-      await RedisService.expire(`ListProductByCategory_${idCategory}`, 3000);
+      await RedisService.expire(`ListProductByCategory_${idCategory}`, 300000);
     }
 
     const filteredResult = resultArray.filter((item) => {

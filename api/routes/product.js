@@ -201,11 +201,10 @@ router.get("/get-list-best-seller", async (request, response) => {
     var limit = parseInt(request.query.limit) || 10;
 
     let resultID = await RedisService.getJson(key);
-    console.log("resultID: ", resultID.length);
     if (!resultID) {
       resultID = await GetList.getIDlistbestseller();
       await RedisService.setJson(key, resultID);
-      await RedisService.expire(key, 60 * 5);
+      await RedisService.expire(key, 60 * 60 * 24);
     }
     const paginatedResultID = resultID?.slice(offset, offset + limit);
     const products = await getListProductByListID(paginatedResultID);
@@ -217,6 +216,102 @@ router.get("/get-list-best-seller", async (request, response) => {
 });
 
 router.get(
+  "/get-list-user-care",
+  checkAuth,
+  checkRole,
+  async (request, response) => {
+    try {
+      var offset = parseInt(request.query.offset) || 0;
+      var limit = parseInt(request.query.limit) || 10;
+      console.log("offset: ", offset, "limit: ", limit);
+      const key = `list_id_of_user_care_${request.user_id}`;
+      let resultID = await RedisService.getJson(key);
+      if (offset === 0) {
+        resultID = await processIDSUserCare(request.user_id);
+        await RedisService.setJson(key, resultID);
+      } else {
+        resultID = await RedisService.getJson(key);
+        if (!resultID) {
+          resultID = await processIDSUserCare(request.user_id);
+          await RedisService.setJson(key, resultID);
+        }
+      }
+      console.log("resultID: ", resultID?.length);
+      const paginatedResultID = resultID?.slice(offset, offset + limit);
+      const products = await getListProductByListID(paginatedResultID);
+      response.status(200).json({ result: products, total: resultID.length });
+    } catch (error) {
+      console.error(error);
+      response.status(500).json({ errorCode: error });
+    }
+  }
+);
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+async function processIDSUserCare(user_id) {
+  try {
+    console.log("processIDSUserCare of user_id: ", user_id);
+    const keys = [
+      `newest_order_${user_id}`,
+      `cart_${user_id}`,
+      `subcribe_${user_id}`,
+      `attention_${user_id}`,
+    ];
+
+    const [lastOrder, lastCart, lastSubcribe, lastAttention] =
+      await Promise.all(keys.map((key) => RedisService.getJson(key)));
+
+    const possibleLists = new Set([
+      ...(lastOrder || []),
+      ...(lastCart || []),
+      ...(lastSubcribe || []),
+      ...(lastAttention || []),
+    ]);
+    let newID = [];
+    if (possibleLists && possibleLists.size > 0) {
+      // Lấy 10 phần tử ngẫu nhiên từ possibleLists
+      const listRamdon = Array.from(possibleLists)
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 8);
+
+      for (const item of listRamdon) {
+        const recommendation = await RedisService.getJson(
+          `recommendation-content-based-${item}`
+        );
+        newID = newID.concat(recommendation?.slice(0, 8) || []); // Lấy 10 phần tử đầu tiên của mỗi recommendation hoặc mảng rỗng nếu undefined
+      }
+
+      let idArray = newID
+        .filter((item) => item !== undefined) // Loại bỏ các giá trị undefined
+        .map((item) => item.id); // Chuyển đổi thành mảng chỉ chứa id
+
+      const resultIDSet = new Set(idArray); // Loại bỏ các id trùng lặp
+      const resultID = Array.from(resultIDSet);
+
+      return resultID;
+    } else {
+      const listIDtemp = await RedisService.getJson(
+        "collaborative_filtering_by_time"
+      );
+      if (!listIDtemp) {
+        return [];
+      }
+      shuffleArray(listIDtemp);
+      return listIDtemp;
+    }
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+router.get(
   "/get-list-recommend-by-user",
   checkAuth,
   checkRole,
@@ -226,8 +321,7 @@ router.get(
       var limit = parseInt(request.query.limit) || 10;
       console.log("offset: ", offset, "limit: ", limit);
       const key = `list_id_of_user_${request.user_id}`;
-      resultID = await RedisService.getJson(key);
-      console.log("resultID: ", resultID.length);
+      let resultID = await RedisService.getJson(key);
       if (offset === 0) {
         resultID = await processIDS(request.user_id);
         await RedisService.setJson(key, resultID);
@@ -252,64 +346,21 @@ router.get(
 async function processIDS(user_id) {
   try {
     console.log("processIDS of user_id: ", user_id);
-    const keys = [
-      `newest_order_${user_id}`,
-      `cart_${user_id}`,
-      `subcribe_${user_id}`,
-      `attention_${user_id}`,
-      `collaborative_filtering_user_${user_id}`,
-      "collaborative_filtering_by_time",
-    ];
-
-    const [
-      lastOrder,
-      lastCart,
-      lastSubcribe,
-      lastAttention,
-      products_rcm,
-      collaborative_filtering,
-    ] = await Promise.all(keys.map((key) => RedisService.getJson(key)));
+    const key = `collaborative_filtering_user_${user_id}`;
+    const products_rcm = await RedisService.getJson(key);
     console.log("products_rcm: ", products_rcm);
-    const possibleLists = [
-      lastOrder,
-      lastCart,
-      lastSubcribe,
-      lastAttention,
-      products_rcm?.slice(0, 5),
-    ].filter((list) => list && list.length > 0);
-    // Chọn ngẫu nhiên một mảng từ các mảng không rỗng
-    const randomList =
-      possibleLists[Math.floor(Math.random() * possibleLists.length)];
-    console.log("randomList: ", randomList);
-    let newID = [];
-    if (randomList) {
-      const listRamdon = randomList.slice(0, 5); // Lấy 5 phần tử đầu tiên
-      for (const item of listRamdon) {
-        const recommendation = await RedisService.getJson(
-          `recommendation-content-based-${item}`
-        );
-        newID = newID.concat(recommendation?.slice(0, 10)); // Lấy 5 phần tử đầu tiên của mỗi recommendation
+    if (products_rcm) {
+      return products_rcm;
+    } else {
+      const listIDtemp = await RedisService.getJson(
+        "collaborative_filtering_by_time"
+      );
+      if (!listIDtemp) {
+        return [];
       }
-      let idArray = newID
-        .filter((item) => item !== undefined) // Loại bỏ các giá trị undefined
-        .map((item) => item.id); // Chuyển đổi thành mảng chỉ chứa id
-      newID = Array.from(new Set(idArray)); // Loại bỏ các id trùng lặp
+      shuffleArray(listIDtemp);
+      return listIDtemp;
     }
-    console.log("newID: ", newID?.length);
-    console.log("products_rcm: ", products_rcm);
-    const resultIDSet = new Set([
-      ...(products_rcm || []),
-      ...(newID || []),
-      ...(lastOrder || []),
-      ...(lastCart || []),
-      ...(lastSubcribe || []),
-      ...(lastAttention || []),
-      ...(collaborative_filtering || []),
-    ]);
-
-    const resultID = Array.from(resultIDSet);
-
-    return resultID;
   } catch (error) {
     console.error(error);
     throw error;
@@ -419,7 +470,7 @@ router.get("/get-list-new", async (request, response) => {
     if (!resultID) {
       resultID = await GetList.getIDlistnew();
       await RedisService.setJson(key, resultID);
-      await RedisService.expire(key, 60 * 5);
+      await RedisService.expire(key, 60 * 60 * 24);
     }
     const paginatedResultID = resultID.slice(offset, offset + limit);
     const products = await getListProductByListID(paginatedResultID);
@@ -621,6 +672,7 @@ router.get("/get-list-search", async (request, response) => {
 router.get("/get-list-hot", async (request, response) => {
   const key = "list_id_hot";
   try {
+    console.log("list_id_hot ");
     //Sản phẩm có lượt xem hoặc lượt yêu thích cao
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
@@ -644,6 +696,7 @@ router.get("/get-list-hot", async (request, response) => {
 router.get("/get-list-good-price-today", async (request, response) => {
   const key = "list_id_good_price_today";
   try {
+    console.log("list_id_good_price_today ");
     //Sản phẩm có giá cả phải chăng
     var offset = parseInt(request.query.offset) || 0;
     var limit = parseInt(request.query.limit) || 10;
@@ -652,7 +705,7 @@ router.get("/get-list-good-price-today", async (request, response) => {
     if (!resultID) {
       resultID = await GetList.getIDlistgoodprice();
       await RedisService.setJson(key, resultID);
-      await RedisService.expire(key, 60 * 5);
+      await RedisService.expire(key, 60 * 60 * 24);
     }
     const paginatedResultID = resultID.slice(offset, offset + limit);
     const products = await getListProductByListID(paginatedResultID);
